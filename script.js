@@ -23,8 +23,7 @@ let hideSelectedBtn;
 let deleteSelectedBtn;
 let submissionSearchInput;
 let photoUploadInput;
-let imagePreview;
-let imagePreviewGrid;
+let photoUploadText;
 let backgroundMusicAudio = null;
 
 function cacheDomElements() {
@@ -42,8 +41,7 @@ function cacheDomElements() {
   deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
   submissionSearchInput = document.getElementById("submissionSearch");
   photoUploadInput = document.getElementById("photoUpload");
-  imagePreview = document.getElementById("imagePreview");
-  imagePreviewGrid = document.getElementById("imagePreviewGrid");
+  photoUploadText = document.getElementById("photoUploadText");
 }
 
 function isCurrentPage(pageName) {
@@ -591,49 +589,28 @@ function getSubmissionExtendedAnswers(item) {
 }
 
 function updateImagePreviewFromFiles(files) {
-  if (!imagePreview || !imagePreviewGrid) {
-    return;
-  }
-
   const validFiles = Array.isArray(files)
     ? files.filter(function (file) {
         return file instanceof File && file.size > 0;
       })
     : [];
 
-  if (!validFiles.length) {
-    imagePreview.hidden = true;
-    imagePreviewGrid.innerHTML = "";
-    return;
+  if (photoUploadText) {
+    photoUploadText.textContent = validFiles.length
+      ? `Đã chọn ${validFiles.length} ảnh`
+      : "Chưa chọn ảnh nào";
   }
 
-  imagePreviewGrid.innerHTML = "";
-
-  validFiles.forEach(function (file) {
-    const objectUrl = URL.createObjectURL(file);
-    const previewImage = document.createElement("img");
-    previewImage.src = objectUrl;
-    previewImage.alt = `Xem trước ảnh ${file.name || "đăng ký"}`;
-    previewImage.onload = function () {
-      URL.revokeObjectURL(objectUrl);
-    };
-    imagePreviewGrid.appendChild(previewImage);
-  });
-
-  imagePreview.hidden = false;
+  return validFiles;
 }
 
 function setupRegistrationImagePreview() {
-  if (!photoUploadInput || photoUploadInput.dataset.previewBound === "true") {
-    return;
+  if (photoUploadInput) {
+    const currentFiles = photoUploadInput.files ? Array.from(photoUploadInput.files) : [];
+    updateImagePreviewFromFiles(currentFiles);
   }
 
-  photoUploadInput.dataset.previewBound = "true";
-
-  photoUploadInput.addEventListener("change", function () {
-    const nextFiles = photoUploadInput.files ? Array.from(photoUploadInput.files) : [];
-    updateImagePreviewFromFiles(nextFiles);
-  });
+  return photoUploadInput;
 }
 
 function setupBackgroundMusic() {

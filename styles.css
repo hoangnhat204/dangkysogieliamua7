@@ -1,4 +1,5 @@
 :root {
+  --font-main: "Segoe UI", Arial, sans-serif;
   --text: #eef4ff;
   --muted: #bfd2ff;
   --muted-strong: #d9e8ff;
@@ -65,7 +66,7 @@ html::after {
 
 body {
   margin: 0;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: var(--font-main);
   color: var(--text);
   background:
     linear-gradient(180deg, rgba(2, 9, 34, 0.32), rgba(1, 6, 23, 0.68)),
@@ -565,9 +566,8 @@ h1,
 .page-subtitle {
   margin: 0 0 18px;
   font-size: clamp(1.7rem, 3vw, 3rem);
-  font-style: italic;
-  font-family: "Segoe UI", Arial, sans-serif;
-  font-weight: 600;
+  font-family: var(--font-main);
+  font-weight: 700;
   letter-spacing: -0.01em;
   color: #f6fbff;
   text-shadow: 0 0 24px rgba(125, 227, 255, 0.22);
@@ -579,6 +579,8 @@ h1,
   color: var(--muted-strong);
   font-size: 1.06rem;
   line-height: 1.9;
+  text-align: justify;
+  text-align-last: left;
 }
 
 .actions {
@@ -930,6 +932,156 @@ main > .section-card > .section-kicker {
   max-width: none;
 }
 
+body.timeline-page .page-hero .section-card > .section-kicker,
+body.journey-page .page-hero .section-card > .section-kicker,
+body.topic-page .page-hero .section-card > .section-kicker {
+  font-size: 0.84rem;
+}
+
+body.timeline-page .page-title,
+body.journey-page .page-title {
+  font-size: clamp(2.4rem, 4.2vw, 4.5rem);
+  line-height: 0.96;
+}
+
+body.topic-page .page-title {
+  font-size: clamp(2.05rem, 3.7vw, 3.95rem);
+  line-height: 1.06;
+  padding-bottom: 0.08em;
+}
+
+body.timeline-page .page-subtitle,
+body.journey-page .page-subtitle,
+body.topic-page .page-subtitle {
+  font-size: clamp(1.18rem, 2vw, 2rem);
+  line-height: 1.15;
+}
+
+body.topic-page .panel p,
+body.topic-page .quote em {
+  text-align: justify;
+  text-align-last: left;
+}
+
+.mentor-gallery-main {
+  gap: 0;
+}
+
+.mentor-gallery-section {
+  padding: 22px;
+}
+
+.mentor-gallery {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  width: 100%;
+}
+
+.mentor-gallery-item {
+  margin: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(240px, 360px) minmax(0, 1fr);
+  align-items: stretch;
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid rgba(180, 224, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(15, 34, 112, 0.28), rgba(6, 16, 56, 0.5)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  box-shadow: var(--shadow-soft);
+  transform: translateY(0);
+  transition:
+    transform 0.35s ease,
+    box-shadow 0.35s ease,
+    border-color 0.35s ease;
+  animation: heroFloat 5.8s ease-in-out infinite;
+}
+
+.mentor-gallery-item::before,
+.mentor-gallery-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mentor-gallery-item::before {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(129, 228, 255, 0.18), transparent 26%),
+    radial-gradient(circle at 82% 78%, rgba(255, 225, 124, 0.12), transparent 28%);
+  opacity: 0.9;
+}
+
+.mentor-gallery-item::after {
+  inset: -20% auto -20% -35%;
+  width: 55%;
+  background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  transform: skewX(-18deg);
+  opacity: 0.65;
+  animation: shimmerSweep 4.8s ease-in-out infinite;
+}
+
+.mentor-gallery-item:hover {
+  transform: translateY(-6px);
+  border-color: rgba(208, 236, 255, 0.34);
+  box-shadow:
+    0 24px 56px rgba(0, 0, 0, 0.32),
+    0 0 38px rgba(119, 213, 255, 0.12);
+}
+
+.mentor-gallery-item-featured {
+  grid-column: auto;
+}
+
+.mentor-gallery-item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  aspect-ratio: auto;
+  object-fit: cover;
+  transform: scale(1.01);
+  transition: transform 0.5s ease, filter 0.5s ease;
+  filter: saturate(1.02) contrast(1.03);
+}
+
+.mentor-gallery-item:hover img {
+  transform: scale(1.04);
+  filter: saturate(1.08) contrast(1.05) brightness(1.03);
+}
+
+.mentor-gallery-caption {
+  position: relative;
+  z-index: 1;
+  padding: 20px 22px 24px;
+}
+
+.mentor-gallery-caption h3 {
+  margin: 0 0 14px;
+  color: #ffffff;
+  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+  line-height: 1.45;
+  text-shadow: 0 0 16px rgba(122, 205, 255, 0.12);
+}
+
+.mentor-gallery-caption p {
+  margin: 0 0 10px;
+  color: var(--muted-strong);
+  line-height: 1.8;
+  text-align: justify;
+  text-align-last: left;
+}
+
+.mentor-gallery-caption p:last-child {
+  margin-bottom: 0;
+}
+
+.mentor-gallery-caption strong {
+  color: #ffffff;
+}
+
 main > .section-card > .section-heading,
 main > .section-card > .section-intro {
   width: min(100%, 860px);
@@ -1151,10 +1303,111 @@ main > .section-card > .section-intro {
 .art-label p {
   margin: 0;
   color: #d8e8ff;
-  font-family: "Segoe Script", "Brush Script MT", "Georgia", "Times New Roman", serif;
+  font-family: var(--font-main);
   font-size: clamp(1.55rem, 2.1vw, 1.9rem);
-  font-style: italic;
+  font-weight: 700;
   line-height: 1.3;
+}
+
+:is(
+  .lead,
+  .section-intro,
+  .stat span,
+  .card p,
+  .panel p,
+  .mini-item div,
+  .timeline-item p,
+  .timeline-content p,
+  .cta p,
+  .details-copy,
+  .helper-text,
+  .submit-note,
+  .field-help,
+  .quote em,
+  details p,
+  .data-grid span,
+  .data-block p,
+  .storage-note,
+  .success-message
+) {
+  text-align: justify;
+  text-align-last: left;
+}
+
+body.home-page .site-shell {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+body.home-page .site-nav {
+  margin-bottom: 18px;
+}
+
+body.home-page .hero {
+  padding: 0;
+}
+
+body.home-page .hero-grid {
+  grid-template-columns: minmax(0, 0.94fr) minmax(360px, 0.86fr);
+  gap: 28px;
+  align-items: center;
+  min-height: min(66vh, 660px);
+}
+
+body.home-page .hero-copy {
+  max-width: 720px;
+  align-self: center;
+}
+
+body.home-page .eyebrow {
+  margin-bottom: 14px;
+}
+
+body.home-page .lead {
+  max-width: 62ch;
+  margin-bottom: 18px;
+  font-size: 1rem;
+  line-height: 1.9;
+}
+
+body.home-page .actions {
+  gap: 12px;
+  margin-bottom: 0;
+}
+
+body.home-page .actions .button {
+  min-height: 46px;
+  padding: 0 20px;
+  font-size: 0.96rem;
+}
+
+body.home-page .hero-art {
+  min-height: 500px;
+  align-self: center;
+}
+
+body.home-page .hero-art::before {
+  width: min(660px, 132%);
+}
+
+body.home-page .hero-art::after {
+  width: min(760px, 144%);
+}
+
+body.home-page .beam {
+  width: 150px;
+  height: 460px;
+}
+
+body.home-page .hero-logo-stage {
+  width: min(430px, 90%);
+}
+
+body.home-page .hero-logo-frame {
+  width: 80%;
+}
+
+body.home-page .footer {
+  padding-top: 12px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1390,31 +1643,85 @@ main > .section-card > .section-intro {
 .star-display {
   display: inline-block;
   color: #ffd66b;
-  letter-spacing: 0.08em;
   text-shadow: 0 0 10px rgba(255, 214, 107, 0.28);
   font-size: 1rem;
   line-height: 1;
+  flex: 0 0 auto;
+}
+
+.star-text {
+  color: #edf5ff;
+  font-size: 0.94rem;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .skill-rating-item textarea {
   min-height: 84px;
 }
 
-.field input[type="file"] {
-  padding: 12px 14px;
-  cursor: pointer;
+.file-upload-wrap {
+  position: relative;
 }
 
-.field input[type="file"]::file-selector-button {
-  margin-right: 12px;
-  padding: 10px 14px;
-  border: 1px solid rgba(160, 214, 255, 0.24);
-  border-radius: 999px;
-  background: rgba(13, 31, 96, 0.78);
-  color: #f3f8ff;
-  font: inherit;
-  font-weight: 700;
+.file-upload-input {
+  position: absolute;
+  inset: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.file-upload-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 74px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(164, 215, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(17, 37, 116, 0.56), rgba(8, 20, 72, 0.82)),
+    linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
   cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.file-upload-box:hover {
+  border-color: rgba(126, 232, 255, 0.34);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(3, 12, 44, 0.22);
+}
+
+.file-upload-input:focus + .file-upload-box,
+.file-upload-input:focus-visible + .file-upload-box {
+  border-color: rgba(126, 232, 255, 0.72);
+  box-shadow: 0 0 0 3px rgba(126, 232, 255, 0.12);
+}
+
+.file-upload-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 128px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(24, 57, 160, 0.98), rgba(11, 34, 111, 0.98));
+  border: 1px solid rgba(126, 232, 255, 0.3);
+  color: #f7fbff;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 10px 22px rgba(3, 12, 44, 0.24);
+}
+
+.file-upload-text {
+  color: var(--muted-strong);
+  font-size: 0.96rem;
+  line-height: 1.55;
 }
 
 .image-preview {
@@ -1550,7 +1857,7 @@ main > .section-card > .section-intro {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(164, 215, 255, 0.14);
   color: #f4f8ff;
-  font-family: Consolas, "Courier New", monospace;
+  font-family: inherit;
   font-size: 0.92em;
   white-space: nowrap;
 }
@@ -2058,9 +2365,28 @@ details p {
   .hero-grid > .hero-art {
     order: 1;
   }
+
+  body.home-page .hero-grid {
+    min-height: auto;
+    gap: 18px;
+  }
+
+  body.home-page .hero-copy {
+    max-width: none;
+  }
+
+  body.home-page .hero-art {
+    min-height: 420px;
+  }
 }
 
 @media (max-width: 720px) {
+  html,
+  body {
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     background-attachment: scroll;
     background-position: center top;
@@ -2147,6 +2473,9 @@ details p {
     padding: 12px 14px;
     border-radius: 16px;
     font-size: 0.96rem;
+    align-items: flex-start;
+    white-space: normal;
+    line-height: 1.4;
   }
 
   .toolbar {
@@ -2239,6 +2568,33 @@ details p {
     margin-bottom: 18px;
     font-size: 0.98rem;
     line-height: 1.75;
+  }
+
+  .page-title,
+  h1,
+  .section-heading,
+  .login-title,
+  .mentor-gallery-caption h3,
+  .timeline-content h3,
+  .data-card-head h3 {
+    overflow-wrap: anywhere;
+    word-break: normal;
+    text-wrap: balance;
+  }
+
+  .lead,
+  .section-intro,
+  .card p,
+  .panel p,
+  .timeline-item p,
+  .mentor-gallery-caption p,
+  .data-card-head p,
+  .submit-note,
+  .helper-text,
+  .field-help {
+    text-align: left;
+    text-align-last: auto;
+    overflow-wrap: anywhere;
   }
 
   .login-title {
@@ -2346,10 +2702,41 @@ details p {
     line-height: 1.75;
   }
 
+  .mentor-gallery-section {
+    padding: 16px;
+  }
+
+  .mentor-gallery-item {
+    grid-template-columns: 1fr;
+  }
+
+  .mentor-gallery-item {
+    border-radius: 22px;
+    animation: none;
+  }
+
+  .mentor-gallery-item img {
+    min-height: 0;
+    max-height: 520px;
+  }
+
+  .mentor-gallery-item::after {
+    display: none;
+  }
+
+  .mentor-gallery-caption {
+    padding: 18px;
+  }
+
+  .mentor-gallery-caption h3 {
+    font-size: 1rem;
+  }
+
   .quick-grid,
   .benefit-grid,
   .timeline-grid,
   .closing-grid,
+  .mentor-gallery,
   .registration-layout,
   .form-grid,
   .story-grid,
@@ -2396,6 +2783,7 @@ details p {
 
   .badge {
     line-height: 1.45;
+    white-space: normal;
   }
 
   .timeline-list {
@@ -2416,6 +2804,8 @@ details p {
   .timeline-date {
     min-height: 36px;
     font-size: 0.84rem;
+    white-space: normal;
+    line-height: 1.4;
   }
 
   .timeline-content h3 {
@@ -2490,7 +2880,6 @@ details p {
 
   .star-display {
     font-size: 0.9rem;
-    letter-spacing: 0.04em;
   }
 
   .choice-item {
@@ -2541,6 +2930,12 @@ details p {
   .toolbar-actions .button {
     width: auto;
     flex: 1 1 100%;
+  }
+
+  .button,
+  .submission-select-control {
+    white-space: normal;
+    line-height: 1.4;
   }
 
   .data-grid {
@@ -2626,6 +3021,7 @@ details p {
     min-height: 44px;
     padding: 11px 12px;
     font-size: 0.92rem;
+    line-height: 1.38;
   }
 
   .section-card,
@@ -2633,6 +3029,27 @@ details p {
   .panel {
     padding: 16px 14px;
     border-radius: 18px;
+  }
+
+  .mentor-gallery {
+    gap: 12px;
+  }
+
+  .mentor-gallery-section {
+    padding: 12px;
+  }
+
+  .mentor-gallery-item {
+    border-radius: 18px;
+  }
+
+  .mentor-gallery-caption {
+    padding: 14px;
+  }
+
+  .mentor-gallery-caption h3 {
+    font-size: 0.95rem;
+    line-height: 1.5;
   }
 
   .page-title,
@@ -2721,6 +3138,10 @@ details p {
     font-size: 0.82rem;
   }
 
+  .star-text {
+    font-size: 0.84rem;
+  }
+
   .submit-row {
     gap: 10px;
   }
@@ -2752,6 +3173,7 @@ details p {
 
   .timeline-content h3 {
     font-size: 0.98rem;
+    line-height: 1.45;
   }
 
   .data-card summary {
@@ -2762,10 +3184,22 @@ details p {
     padding: 0 12px 12px;
   }
 
-  .field input[type="file"]::file-selector-button {
-    display: block;
+  .file-upload-box {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .file-upload-button {
     width: 100%;
-    margin: 0 0 8px;
+    min-width: 0;
+  }
+
+  .file-upload-text {
+    text-align: center;
+    font-size: 0.9rem;
   }
 
   .auth-fab,
@@ -2795,5 +3229,203 @@ details p {
   .toolbar-menu-toggle,
   .nav-menu-toggle {
     min-height: 44px;
+  }
+}
+
+@media (max-width: 380px) {
+  .container {
+    width: calc(100% - 10px);
+  }
+
+  .site-shell {
+    padding-top: 8px;
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .site-nav {
+    top: 6px;
+    gap: 8px;
+    padding: 8px;
+    margin-bottom: 14px;
+    border-radius: 18px;
+  }
+
+  .brand {
+    font-size: 0.8rem;
+    gap: 8px;
+  }
+
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+  }
+
+  .nav-menu-toggle {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    min-height: 42px;
+    border-radius: 14px;
+  }
+
+  .site-nav.has-nav-menu .nav-links {
+    top: calc(100% + 6px);
+    padding: 7px;
+    border-radius: 18px;
+  }
+
+  .site-nav.has-nav-menu .nav-links a,
+  .site-nav.has-nav-menu .nav-links .nav-button {
+    min-height: 42px;
+    padding: 10px 11px;
+    font-size: 0.88rem;
+  }
+
+  .section-card,
+  .card,
+  .panel,
+  .login-card .panel {
+    padding: 13px 11px;
+    border-radius: 16px;
+  }
+
+  .page-title,
+  h1 {
+    margin: 10px 0 8px;
+    font-size: clamp(1.65rem, 9vw, 2.15rem);
+    line-height: 1.04;
+  }
+
+  .page-subtitle,
+  .hero-subtitle {
+    font-size: 0.98rem;
+    line-height: 1.32;
+  }
+
+  .section-kicker,
+  .eyebrow {
+    font-size: 0.74rem;
+    padding: 7px 10px;
+  }
+
+  .lead,
+  .section-intro,
+  .card p,
+  .panel p,
+  .mentor-gallery-caption p,
+  .timeline-item p {
+    font-size: 0.88rem;
+    line-height: 1.58;
+  }
+
+  .mentor-gallery {
+    gap: 10px;
+  }
+
+  .mentor-gallery-item {
+    border-radius: 16px;
+  }
+
+  .mentor-gallery-item img {
+    max-height: 360px;
+  }
+
+  .mentor-gallery-caption {
+    padding: 12px 11px 13px;
+  }
+
+  .mentor-gallery-caption h3,
+  .timeline-content h3,
+  .data-card-head h3 {
+    font-size: 0.9rem;
+    line-height: 1.42;
+  }
+
+  .hero-art {
+    min-height: 250px;
+  }
+
+  .hero-logo-stage {
+    width: min(280px, 100%);
+  }
+
+  .field label,
+  summary,
+  .submit-note,
+  .helper-text,
+  .field-help {
+    font-size: 0.86rem;
+  }
+
+  .field input:not([type="checkbox"]):not([type="radio"]),
+  .field select,
+  .field textarea,
+  .toolbar-search input {
+    padding: 10px 11px;
+    font-size: 0.88rem;
+    border-radius: 12px;
+  }
+
+  .field textarea.long-answer,
+  .skill-rating-item textarea,
+  .field textarea {
+    min-height: 70px;
+  }
+
+  .skill-rating-item {
+    padding: 10px 8px;
+    border-radius: 14px;
+  }
+
+  .star-choice-group,
+  .image-preview-grid,
+  .submission-image-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .star-choice-item,
+  .button,
+  .toolbar-actions .button {
+    min-height: 40px;
+  }
+
+  .timeline-item {
+    gap: 8px;
+    padding-top: 16px;
+  }
+
+  .timeline-date,
+  .badge,
+  .count-pill,
+  .submission-select-control {
+    font-size: 0.8rem;
+    line-height: 1.35;
+  }
+
+  .data-card summary,
+  .data-card-body,
+  .file-upload-box {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .auth-fab,
+  .zalo-fab {
+    width: 44px;
+    height: 44px;
+  }
+
+  .zalo-fab {
+    bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .auth-fab-icon {
+    font-size: 0.68rem;
+  }
+
+  .footer {
+    padding: 16px 8px 24px;
+    font-size: 0.74rem;
   }
 }
