@@ -622,13 +622,12 @@ if (registrationForm && successMessage) {
         body: JSON.stringify(payload),
       });
 
-      successMessage.textContent =
-        "Đã gửi đăng ký thành công.";
+      successMessage.textContent = "Đăng ký thành công";
       successMessage.classList.add("show");
-      registrationForm.reset();
-      updateImagePreviewFromFile(null);
+      registrationForm.classList.add("submitted");
       registrationForm.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (error) {
+      registrationForm.classList.remove("submitted");
       successMessage.textContent =
         error.message || "Khong gui duoc du lieu len server. Vui long kiem tra Vercel, Supabase va route /api.";
       successMessage.classList.add("error", "show");

@@ -890,6 +890,23 @@ main > .section-card > .section-intro {
   color: #ffd8dd;
 }
 
+#registrationForm.submitted .form-grid,
+#registrationForm.submitted .helper-text,
+#registrationForm.submitted .submit-row {
+  display: none;
+}
+
+#registrationForm.submitted .success-message.show {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  text-align: center;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
 .inline-link {
   color: var(--accent);
   font-weight: 700;
