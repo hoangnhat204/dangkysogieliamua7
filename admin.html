@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - Đường Lên Đỉnh Sogielia Mùa 7</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="site-shell">
+    <div class="container">
+      <nav class="site-nav">
+        <a class="brand" href="index.html">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>Sogielia Mùa 7</span>
+        </a>
+        <div class="nav-links">
+          <a href="index.html">Trang chủ</a>
+          <a href="dang-ky.html">Đăng ký</a>
+          <a class="active" href="admin.html">Admin</a>
+          <button class="nav-button" id="logoutButton" type="button">Đăng xuất</button>
+        </div>
+      </nav>
+
+      <header class="page-hero">
+        <div class="section-card">
+          <div class="section-kicker">Khu vực quản trị</div>
+          <h1 class="page-title">Admin</h1>
+          <p class="page-subtitle">Quản lý dữ liệu thí sinh riêng biệt</p>
+          <p class="lead">
+            Trang này dành riêng cho BTC để theo dõi nơi lưu dữ liệu đăng ký. Thông tin không còn hiển thị trên trang công khai của thí sinh.
+          </p>
+        </div>
+      </header>
+
+      <main>
+        <section class="section-card">
+          <div class="story-grid">
+            <article class="panel">
+              <h3>Quản lý dữ liệu database</h3>
+              <p>
+                Toàn bộ hồ sơ thí sinh hiện được lưu và theo dõi trực tiếp trong database của website.
+              </p>
+              <p>
+                BTC có thể xem nhanh danh sách hồ sơ, xuất Excel, ẩn dữ liệu hoặc hiện lại dữ liệu ngay trên trang này.
+              </p>
+            </article>
+
+            <article class="panel">
+              <h3>Trạng thái lưu form</h3>
+              <p>
+                Khi thí sinh gửi form đăng ký, dữ liệu sẽ được lưu vào database online của website để BTC quản lý ngay trên admin.
+              </p>
+              <p>
+                Để dùng online trên <code>Vercel</code>, dự án cần cấu hình API serverless và kết nối <code>Supabase</code> để lưu dữ liệu lâu dài.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section-card">
+          <div class="toolbar print-hidden">
+            <span class="count-pill" id="submissionCount">0 hồ sơ trong cơ sở dữ liệu admin</span>
+            <div class="toolbar-actions">
+              <button class="button button-secondary" id="exportExcelBtn" type="button">Xuất Excel</button>
+              <button class="button button-secondary" id="restoreDataBtn" type="button" hidden>Hiện lại dữ liệu ẩn</button>
+              <button class="button button-secondary" id="hideDataBtn" type="button">Ẩn dữ liệu</button>
+            </div>
+          </div>
+
+          <div class="panel empty-state" id="emptyState">
+            Chưa có hồ sơ nào trong cơ sở dữ liệu admin đang hiển thị.
+          </div>
+
+          <div class="data-list" id="submissionList"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <footer class="footer">
+    ĐƯỜNG LÊN ĐỈNH SOGIELIA MÙA 7 - TRANG ADMIN
+  </footer>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng Ký - Đường Lên Đỉnh Sogielia Mùa 7</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="site-shell">
+    <div class="container">
+      <nav class="site-nav">
+        <a class="brand" href="index.html">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>Sogielia Mùa 7</span>
+        </a>
+        <div class="nav-links">
+          <a href="index.html">Trang chủ</a>
+          <a href="chu-de.html">Chủ đề</a>
+          <a href="hanh-trinh.html">Hành trình</a>
+          <a href="moc-thoi-gian.html">Mốc thời gian</a>
+          <a class="active" href="dang-ky.html">Đăng ký</a>
+        </div>
+      </nav>
+
+      <header class="page-hero">
+        <div class="section-card">
+          <div class="section-kicker">Biểu mẫu tham gia</div>
+          <h1 class="page-title">Đăng Ký Thí Sinh</h1>
+          <p class="page-subtitle">Bước vào hành trình chinh phục mới</p>
+          <p class="lead">
+            Đối tượng tham gia là công dân Việt Nam sinh từ năm 1995 đến 2009. Hãy điền đầy đủ thông tin để BTC ghi nhận hồ sơ của bạn cho Đường Lên Đỉnh Sogielia Mùa 7.
+          </p>
+          <div class="badge-row">
+            <span class="badge">📝 Mở đơn: 16/06 - 02/07/2026</span>
+            <span class="badge">👥 Công dân Việt Nam sinh 1995 - 2009</span>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="section-card">
+          <div class="registration-layout">
+            <article class="panel">
+              <h3>Trước khi điền form</h3>
+              <p>
+                Mùa 7 tiếp tục là sân chơi tri thức và trải nghiệm dành cho những bạn trẻ mong muốn tìm hiểu, kết nối và lan tỏa những giá trị tích cực về bình đẳng, hòa nhập và tôn trọng sự khác biệt.
+              </p>
+              <p>
+                Sau khi gửi, dữ liệu không hiển thị trên trang công khai. BTC sẽ quản lý riêng trên trang admin.
+              </p>
+              <p>
+                Dữ liệu sẽ được ghi nhận trực tiếp vào database của website.
+              </p>
+            </article>
+
+            <div class="panel form-card">
+              <form id="registrationForm" novalidate>
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="fullName">Họ và tên</label>
+                    <input id="fullName" name="fullName" type="text" placeholder="Nhập họ và tên" required />
+                  </div>
+
+                  <div class="field">
+                    <label for="birthYear">Năm sinh</label>
+                    <input id="birthYear" name="birthYear" type="number" min="1995" max="2009" placeholder="Ví dụ: 2003" required />
+                  </div>
+
+                  <div class="field">
+                    <label for="phone">Số điện thoại</label>
+                    <input id="phone" name="phone" type="tel" placeholder="Nhập số điện thoại" required />
+                  </div>
+
+                  <div class="field">
+                    <label for="email">Email</label>
+                    <input id="email" name="email" type="email" placeholder="Nhập địa chỉ email" required />
+                  </div>
+
+                  <div class="field">
+                    <label for="city">Tỉnh / Thành phố</label>
+                    <input id="city" name="city" type="text" placeholder="Bạn đang sinh sống tại đâu?" required />
+                  </div>
+
+                  <div class="field">
+                    <label for="occupation">Trường học / Công việc hiện tại</label>
+                    <input id="occupation" name="occupation" type="text" placeholder="Nhập trường học hoặc công việc hiện tại" required />
+                  </div>
+
+                  <div class="field full">
+                    <label for="identity">Bạn muốn giới thiệu gì về bản thân?</label>
+                    <textarea id="identity" name="identity" placeholder="Chia sẻ ngắn gọn về bản thân, hành trình hoặc màu sắc riêng của bạn"></textarea>
+                  </div>
+
+                  <div class="field full">
+                    <label for="motivation">Điều gì khiến bạn muốn tham gia Đường Lên Đỉnh Sogielia Mùa 7?</label>
+                    <textarea id="motivation" name="motivation" placeholder="Chia sẻ động lực tham gia của bạn" required></textarea>
+                  </div>
+
+                  <div class="field full">
+                    <label for="story">Bạn nhìn thấy điều gì từ chủ đề "Kính Vạn Hoa - Càng Xoay Càng Rõ"?</label>
+                    <textarea id="story" name="story" placeholder="Chia sẻ góc nhìn hoặc câu chuyện mà bạn muốn khám phá" required></textarea>
+                  </div>
+
+                  <div class="field full">
+                    <label for="strength">Ba điểm mạnh mà bạn muốn mang đến hành trình này là gì?</label>
+                    <textarea id="strength" name="strength" placeholder="Ví dụ: tư duy phản biện, làm việc nhóm, kết nối cộng đồng" required></textarea>
+                  </div>
+
+                  <div class="field full">
+                    <label>Bạn mong muốn nhận được điều gì nhiều nhất khi tham gia?</label>
+                    <div class="choice-group">
+                      <label class="choice-item"><input type="checkbox" name="expectation" value="Kiến thức chuyên sâu" /> Kiến thức chuyên sâu hơn về đa dạng giới và cộng đồng LGBTIQ+</label>
+                      <label class="choice-item"><input type="checkbox" name="expectation" value="Kết nối với mentor và thí sinh" /> Cơ hội kết nối với mentor, thí sinh và những người trẻ cùng chí hướng</label>
+                      <label class="choice-item"><input type="checkbox" name="expectation" value="Phát triển bản thân" /> Môi trường để phát triển bản thân và vượt qua giới hạn</label>
+                      <label class="choice-item"><input type="checkbox" name="expectation" value="Lan tỏa giá trị tích cực" /> Cơ hội lan tỏa những giá trị tích cực đến cộng đồng</label>
+                    </div>
+                  </div>
+
+                  <div class="field full">
+                    <label>Bạn có thể tham gia đầy đủ các mốc thời gian quan trọng của cuộc thi không?</label>
+                    <div class="choice-group">
+                      <label class="choice-item"><input type="radio" name="availability" value="Có thể tham gia đầy đủ" required /> Có, mình có thể sắp xếp để tham gia đầy đủ các hoạt động.</label>
+                      <label class="choice-item"><input type="radio" name="availability" value="Cần trao đổi thêm" required /> Mình cần trao đổi thêm với BTC về một vài mốc thời gian.</label>
+                    </div>
+                  </div>
+
+                  <div class="field full">
+                    <label class="choice-item">
+                      <input id="consent" name="consent" type="checkbox" required />
+                      Mình xác nhận các thông tin đã điền là chính xác và đồng ý để BTC liên hệ phục vụ cho quá trình tổ chức cuộc thi.
+                    </label>
+                  </div>
+                </div>
+
+                <p class="helper-text">
+                </p>
+
+                <div class="submit-row">
+                  <button class="button button-primary" type="submit">Gửi đăng ký</button>
+                  <span class="submit-note">BTC sẽ ghi nhận thông tin ngay khi bạn hoàn tất biểu mẫu.</span>
+                </div>
+
+                <div class="success-message" id="successMessage" aria-live="polite">
+                  Đã gửi đăng ký thành công.
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <footer class="footer">
+    ĐƯỜNG LÊN ĐỈNH SOGIELIA MÙA 7 - TRANG ĐĂNG KÝ
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
