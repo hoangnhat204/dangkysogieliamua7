@@ -283,7 +283,7 @@ a {
 }
 
 .site-shell {
-  padding: 24px 0 72px;
+  padding: 24px 0 calc(72px + env(safe-area-inset-bottom, 0px));
   position: relative;
   z-index: 1;
 }
@@ -1183,6 +1183,11 @@ main > .section-card > .section-intro {
 }
 
 .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
   padding: 8px 12px;
   border-radius: 999px;
   font-size: 0.92rem;
@@ -1215,7 +1220,16 @@ main > .section-card > .section-intro {
   border: 1px solid rgba(255,255,255,0.08);
 }
 
+.timeline-list {
+  display: grid;
+  gap: 16px;
+}
+
 .timeline-item {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
   padding-top: 28px;
 }
 
@@ -1229,6 +1243,38 @@ main > .section-card > .section-intro {
   border-radius: 999px;
   background: var(--rainbow);
   opacity: 0.95;
+}
+
+.timeline-date {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(164, 215, 255, 0.16);
+  color: #f4f8ff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.timeline-content {
+  display: grid;
+  gap: 8px;
+}
+
+.timeline-content h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1.12rem;
+}
+
+.timeline-content p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.75;
 }
 
 .date {
@@ -1588,7 +1634,7 @@ main > .section-card > .section-intro {
 
 .floating-fab {
   position: fixed;
-  right: 18px;
+  right: max(18px, calc(env(safe-area-inset-right, 0px) + 12px));
   z-index: 1200;
   width: 58px;
   height: 58px;
@@ -1614,11 +1660,11 @@ main > .section-card > .section-intro {
 }
 
 .auth-fab {
-  bottom: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
 }
 
 .zalo-fab {
-  bottom: 88px;
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(135deg, rgba(32, 110, 255, 0.96), rgba(12, 72, 188, 0.98));
   border-color: rgba(171, 217, 255, 0.45);
 }
@@ -2015,12 +2061,17 @@ details p {
 }
 
 @media (max-width: 720px) {
+  body {
+    background-attachment: scroll;
+    background-position: center top;
+  }
+
   .container {
     width: min(var(--max-width), calc(100% - 20px));
   }
 
   .site-shell {
-    padding: 14px 0 44px;
+    padding: 14px 0 calc(108px + env(safe-area-inset-bottom, 0px));
   }
 
   main {
@@ -2163,7 +2214,8 @@ details p {
 
   .eyebrow {
     width: 100%;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    justify-content: flex-start;
     font-size: 0.88rem;
     padding: 10px 14px;
   }
@@ -2238,6 +2290,14 @@ details p {
     min-height: 340px;
   }
 
+  .hero-art::before {
+    width: min(580px, 132%);
+  }
+
+  .hero-art::after {
+    width: min(660px, 146%);
+  }
+
   .beam {
     width: 110px;
     height: 300px;
@@ -2297,13 +2357,69 @@ details p {
     gap: 14px;
   }
 
+  .registration-layout-single {
+    width: 100%;
+  }
+
+  .registration-layout-single .form-card {
+    width: 100%;
+    padding: 18px 16px;
+  }
+
+  .registration-layout-single #registrationForm {
+    width: 100%;
+  }
+
+  .registration-layout-single #registrationForm .field,
+  .registration-layout-single #registrationForm .field.full {
+    width: 100%;
+  }
+
+  .registration-layout-single .field label,
+  .registration-layout-single .field-help,
+  .registration-layout-single .submit-note {
+    text-align: left;
+    text-align-last: auto;
+  }
+
+  .page-hero .section-card > .page-title,
+  .page-hero .section-card > .page-subtitle,
+  .page-hero .section-card > .lead,
+  .page-hero .section-card > .badge-row {
+    width: 100%;
+  }
+
+  .badge-row {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .badge {
+    line-height: 1.45;
+  }
+
+  .timeline-list {
+    gap: 14px;
+  }
+
   .timeline-item {
+    grid-template-columns: 1fr;
+    gap: 10px;
     padding-top: 22px;
   }
 
   .timeline-item::after {
     left: 22px;
     width: 52px;
+  }
+
+  .timeline-date {
+    min-height: 36px;
+    font-size: 0.84rem;
+  }
+
+  .timeline-content h3 {
+    font-size: 1.02rem;
   }
 
   .date {
@@ -2324,6 +2440,12 @@ details p {
     font-size: 0.92rem;
   }
 
+  .image-preview-grid,
+  .submission-image-grid {
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    gap: 10px;
+  }
+
   .field label,
   summary {
     font-size: 0.96rem;
@@ -2339,6 +2461,36 @@ details p {
 
   .field textarea {
     min-height: 110px;
+  }
+
+  .field textarea.long-answer,
+  .skill-rating-item textarea {
+    min-height: 84px;
+  }
+
+  .skill-rating-list {
+    gap: 12px;
+  }
+
+  .skill-rating-item {
+    padding: 14px 12px;
+    border-radius: 16px;
+  }
+
+  .star-choice-group {
+    gap: 8px;
+  }
+
+  .star-choice-item {
+    flex: 1 1 calc(50% - 8px);
+    justify-content: center;
+    min-height: 42px;
+    padding: 10px 12px;
+  }
+
+  .star-display {
+    font-size: 0.9rem;
+    letter-spacing: 0.04em;
   }
 
   .choice-item {
@@ -2399,18 +2551,35 @@ details p {
     flex-direction: column;
   }
 
+  .data-card-head > div {
+    width: 100%;
+  }
+
+  .data-card-meta {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .data-card summary {
+    padding: 14px;
+  }
+
+  .data-card-body {
+    padding: 0 14px 14px;
+  }
+
   .submission-select-control {
     align-self: flex-start;
   }
 
   .auth-fab {
-    bottom: 18px;
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
     width: 52px;
     height: 52px;
   }
 
   .zalo-fab {
-    bottom: 86px;
+    bottom: calc(86px + env(safe-area-inset-bottom, 0px));
     width: 52px;
     height: 52px;
   }
@@ -2425,6 +2594,14 @@ details p {
 }
 
 @media (max-width: 480px) {
+  .container {
+    width: calc(100% - 14px);
+  }
+
+  .site-shell {
+    padding-bottom: calc(98px + env(safe-area-inset-bottom, 0px));
+  }
+
   .site-nav {
     padding: 10px;
   }
@@ -2450,6 +2627,166 @@ details p {
     padding: 11px 12px;
     font-size: 0.92rem;
   }
+
+  .section-card,
+  .card,
+  .panel {
+    padding: 16px 14px;
+    border-radius: 18px;
+  }
+
+  .page-title,
+  h1 {
+    font-size: clamp(1.9rem, 10vw, 2.5rem);
+    line-height: 1.02;
+  }
+
+  .page-subtitle,
+  .hero-subtitle {
+    font-size: 1.05rem;
+    line-height: 1.35;
+  }
+
+  .lead,
+  .section-intro,
+  .card p,
+  .panel p {
+    font-size: 0.92rem;
+    line-height: 1.65;
+  }
+
+  .registration-layout-single .form-card {
+    padding: 14px 12px;
+  }
+
+  .hero-art {
+    min-height: 300px;
+  }
+
+  .hero-art::before {
+    width: min(440px, 138%);
+  }
+
+  .hero-art::after {
+    width: min(520px, 150%);
+  }
+
+  .field label,
+  summary {
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .field input:not([type="checkbox"]):not([type="radio"]),
+  .field select,
+  .field textarea {
+    padding: 12px;
+    font-size: 0.92rem;
+  }
+
+  .field textarea.long-answer,
+  .skill-rating-item textarea,
+  .field textarea {
+    min-height: 76px;
+  }
+
+  .skill-rating-item {
+    gap: 8px;
+    padding: 12px 10px;
+  }
+
+  .skill-rating-item strong {
+    font-size: 0.94rem;
+  }
+
+  .image-preview-grid,
+  .submission-image-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .star-choice-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .star-choice-item {
+    min-height: 40px;
+    padding: 8px 10px;
+    border-radius: 14px;
+  }
+
+  .star-display {
+    font-size: 0.82rem;
+  }
+
+  .submit-row {
+    gap: 10px;
+  }
+
+  .submit-note {
+    width: 100%;
+    text-align: left;
+  }
+
+  .badge-row {
+    gap: 8px;
+  }
+
+  .badge {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .timeline-item {
+    padding-top: 18px;
+  }
+
+  .timeline-date {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .timeline-content h3 {
+    font-size: 0.98rem;
+  }
+
+  .data-card summary {
+    padding: 12px;
+  }
+
+  .data-card-body {
+    padding: 0 12px 12px;
+  }
+
+  .field input[type="file"]::file-selector-button {
+    display: block;
+    width: 100%;
+    margin: 0 0 8px;
+  }
+
+  .auth-fab,
+  .zalo-fab {
+    right: max(12px, calc(env(safe-area-inset-right, 0px) + 8px));
+    width: 48px;
+    height: 48px;
+  }
+
+  .auth-fab {
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .zalo-fab {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .auth-fab-icon {
+    font-size: 0.74rem;
+  }
+
 
   .count-pill {
     font-size: 0.84rem;
