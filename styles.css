@@ -934,14 +934,16 @@ main > .section-card > .section-kicker {
 
 body.timeline-page .page-hero .section-card > .section-kicker,
 body.journey-page .page-hero .section-card > .section-kicker,
+body.mentor-page .page-hero .section-card > .section-kicker,
 body.topic-page .page-hero .section-card > .section-kicker {
   font-size: 0.84rem;
 }
 
 body.timeline-page .page-title,
-body.journey-page .page-title {
+body.journey-page .page-title,
+body.mentor-page .page-title {
   font-size: clamp(2.4rem, 4.2vw, 4.5rem);
-  line-height: 0.96;
+  line-height: 1.04;
 }
 
 body.topic-page .page-title {
@@ -952,9 +954,10 @@ body.topic-page .page-title {
 
 body.timeline-page .page-subtitle,
 body.journey-page .page-subtitle,
+body.mentor-page .page-subtitle,
 body.topic-page .page-subtitle {
   font-size: clamp(1.18rem, 2vw, 2rem);
-  line-height: 1.15;
+  line-height: 1.22;
 }
 
 body.topic-page .panel p,
@@ -2553,7 +2556,7 @@ details p {
   .page-title {
     margin: 12px 0 10px;
     font-size: clamp(2.2rem, 12vw, 3.6rem);
-    line-height: 0.96;
+    line-height: 1.06;
     white-space: normal;
   }
 
@@ -2716,8 +2719,12 @@ details p {
   }
 
   .mentor-gallery-item img {
+    width: 100%;
+    height: auto;
     min-height: 0;
-    max-height: 520px;
+    max-height: none;
+    object-fit: contain;
+    background: rgba(4, 12, 42, 0.92);
   }
 
   .mentor-gallery-item::after {
@@ -3052,10 +3059,14 @@ details p {
     line-height: 1.5;
   }
 
+  .mentor-gallery-item img {
+    max-height: none;
+  }
+
   .page-title,
   h1 {
     font-size: clamp(1.9rem, 10vw, 2.5rem);
-    line-height: 1.02;
+    line-height: 1.08;
   }
 
   .page-subtitle,
@@ -3294,7 +3305,7 @@ details p {
   h1 {
     margin: 10px 0 8px;
     font-size: clamp(1.65rem, 9vw, 2.15rem);
-    line-height: 1.04;
+    line-height: 1.1;
   }
 
   .page-subtitle,
@@ -3328,7 +3339,7 @@ details p {
   }
 
   .mentor-gallery-item img {
-    max-height: 360px;
+    max-height: none;
   }
 
   .mentor-gallery-caption {
