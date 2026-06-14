@@ -1,9 +1,0 @@
-Dat file nhac MP3 cua ban vao cung thu muc `assets`.
-
-Ten file mac dinh hien tai la:
-
-background-music.mp3
-
-Duong dan duoc website su dung:
-
-assets/background-music.mp3

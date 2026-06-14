@@ -89,6 +89,8 @@ function normalizeSubmission(row) {
     expectation: Array.isArray(expectation) ? expectation : [],
     availability: row.availability || "",
     consent: Boolean(row.consent),
+    photoDataUrl: row.photo_data_url || "",
+    photoFileName: row.photo_file_name || "",
     submittedAt: row.submitted_at || "",
   };
 }
@@ -311,6 +313,8 @@ module.exports = async (req, res) => {
           expectation_json: JSON.stringify(body.expectation || []),
           availability: String(body.availability),
           consent: Boolean(body.consent),
+          photo_data_url: String(body.photoDataUrl || ""),
+          photo_file_name: String(body.photoFileName || ""),
           hidden: Boolean(body.hidden),
           submitted_at: String(body.submittedAt),
         },

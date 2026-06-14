@@ -13,9 +13,14 @@ create table if not exists public.submissions (
   expectation_json text not null default '[]',
   availability text not null,
   consent boolean not null default false,
+  photo_data_url text not null default '',
+  photo_file_name text not null default '',
   hidden boolean not null default false,
   submitted_at text not null
 );
+
+alter table public.submissions add column if not exists photo_data_url text not null default '';
+alter table public.submissions add column if not exists photo_file_name text not null default '';
 
 create index if not exists submissions_hidden_idx on public.submissions(hidden);
 create index if not exists submissions_submitted_at_idx on public.submissions(submitted_at);

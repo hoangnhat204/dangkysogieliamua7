@@ -88,6 +88,17 @@
                   </div>
 
                   <div class="field full">
+                    <label for="photoUpload">Tải ảnh của bạn</label>
+                    <input id="photoUpload" name="photo" type="file" accept="image/*" />
+                    <p class="field-help">
+                      Hỗ trợ ảnh JPG, PNG, WEBP. Nên chọn ảnh rõ mặt, dung lượng dưới 10MB.
+                    </p>
+                    <div class="image-preview" id="imagePreview" hidden>
+                      <img id="imagePreviewTag" alt="Xem trước ảnh đăng ký" />
+                    </div>
+                  </div>
+
+                  <div class="field full">
                     <label for="identity">Bạn muốn giới thiệu gì về bản thân?</label>
                     <textarea id="identity" name="identity" placeholder="Chia sẻ ngắn gọn về bản thân, hành trình hoặc màu sắc riêng của bạn"></textarea>
                   </div>

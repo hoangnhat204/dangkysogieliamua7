@@ -8,10 +8,18 @@ const submissionCount = document.getElementById("submissionCount");
 const hideDataBtn = document.getElementById("hideDataBtn");
 const restoreDataBtn = document.getElementById("restoreDataBtn");
 const exportExcelBtn = document.getElementById("exportExcelBtn");
+const photoUploadInput = document.getElementById("photoUpload");
+const imagePreview = document.getElementById("imagePreview");
+const imagePreviewTag = document.getElementById("imagePreviewTag");
 const API_BASE_URL = "/api";
-const BACKGROUND_MUSIC_URL = "assets/background-music.mp3";
+const BACKGROUND_MUSIC_PLAYLIST = [
+  "assets/duonglendinh.mp3",
+  "assets/kinhvanhoa.mp3",
+];
 const BACKGROUND_MUSIC_TIME_KEY = "sogieliaBackgroundMusicTime";
 const BACKGROUND_MUSIC_UNLOCK_KEY = "sogieliaBackgroundMusicUnlocked";
+const BACKGROUND_MUSIC_TRACK_INDEX_KEY = "sogieliaBackgroundMusicTrackIndex";
+const MAX_UPLOAD_IMAGE_SIZE = 10 * 1024 * 1024;
 
 function isCurrentPage(pageName) {
   const path = window.location.pathname.toLowerCase();
@@ -26,27 +34,6 @@ function redirectToLogin() {
   window.location.href = "login.html";
 }
 
-function createNavLink(href, label, isActive) {
-  const link = document.createElement("a");
-  link.href = href;
-  link.textContent = label;
-
-  if (isActive) {
-    link.classList.add("active");
-  }
-
-  return link;
-}
-
-function createLogoutButton() {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "nav-button";
-  button.dataset.authAction = "logout";
-  button.textContent = "Đăng xuất";
-  return button;
-}
-
 function clearExistingAuthControls(navLinks) {
   navLinks
     .querySelectorAll('a[href="login.html"], a[href="admin.html"], button[data-auth-action="logout"], #logoutButton')
@@ -55,14 +42,39 @@ function clearExistingAuthControls(navLinks) {
     });
 }
 
+function removeExistingAuthFab() {
+  const existingFab = document.querySelector(".auth-fab");
+
+  if (existingFab) {
+    existingFab.remove();
+  }
+}
+
+function createAuthFab(config) {
+  const element = document.createElement(config.type === "button" ? "button" : "a");
+  element.className = "auth-fab";
+  element.setAttribute("aria-label", config.label);
+  element.title = config.label;
+  element.innerHTML = `<span class="auth-fab-icon" aria-hidden="true">${config.icon}</span>`;
+
+  if (config.type === "button") {
+    element.type = "button";
+    element.dataset.authAction = config.action || "";
+  } else {
+    element.href = config.href;
+  }
+
+  return element;
+}
+
 async function renderNavigationAuth() {
   const navLinks = document.querySelector(".nav-links");
 
-  if (!navLinks) {
-    return false;
+  if (navLinks) {
+    clearExistingAuthControls(navLinks);
   }
 
-  clearExistingAuthControls(navLinks);
+  removeExistingAuthFab();
 
   let authenticated = false;
 
@@ -76,12 +88,33 @@ async function renderNavigationAuth() {
   }
 
   if (authenticated) {
-    navLinks.appendChild(createNavLink("admin.html", "Admin", isCurrentPage("admin.html")));
-    navLinks.appendChild(createLogoutButton());
+    const authFab = isCurrentPage("admin.html")
+      ? createAuthFab({
+          type: "button",
+          action: "logout",
+          label: "Đăng xuất",
+          icon: "↩",
+        })
+      : createAuthFab({
+          type: "link",
+          href: "admin.html",
+          label: "Admin",
+          icon: "A",
+        });
+
+    document.body.appendChild(authFab);
     return true;
   }
 
-  navLinks.appendChild(createNavLink("login.html", "Đăng nhập", isCurrentPage("login.html")));
+  document.body.appendChild(
+    createAuthFab({
+      type: "link",
+      href: "login.html",
+      label: "Đăng nhập",
+      icon: "BTC",
+    })
+  );
+
   return false;
 }
 
@@ -118,8 +151,40 @@ async function requireAdminAuth() {
   }
 }
 
-function collectFormData(form) {
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = function () {
+      resolve(typeof reader.result === "string" ? reader.result : "");
+    };
+
+    reader.onerror = function () {
+      reject(new Error("Khong doc duoc file anh da chon."));
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
+async function collectFormData(form) {
   const formData = new FormData(form);
+  const photoFile = formData.get("photo");
+  let photoDataUrl = "";
+  let photoFileName = "";
+
+  if (photoFile instanceof File && photoFile.size > 0) {
+    if (!photoFile.type.startsWith("image/")) {
+      throw new Error("Chi duoc tai len file anh.");
+    }
+
+    if (photoFile.size > MAX_UPLOAD_IMAGE_SIZE) {
+      throw new Error("Anh tai len vuot qua 10MB. Vui long chon anh nho hon.");
+    }
+
+    photoDataUrl = await readFileAsDataUrl(photoFile);
+    photoFileName = photoFile.name || "";
+  }
 
   return {
     id: Date.now(),
@@ -137,6 +202,8 @@ function collectFormData(form) {
     expectation: formData.getAll("expectation"),
     availability: formData.get("availability") || "",
     consent: Boolean(formData.get("consent")),
+    photoDataUrl: photoDataUrl,
+    photoFileName: photoFileName,
     submittedAt: new Date().toISOString(),
   };
 }
@@ -200,27 +267,84 @@ function formatDateTime(isoString) {
   return new Date(isoString).toLocaleString("vi-VN");
 }
 
+function updateImagePreviewFromFile(file) {
+  if (!imagePreview || !imagePreviewTag) {
+    return;
+  }
+
+  if (!(file instanceof File) || file.size === 0) {
+    imagePreview.hidden = true;
+    imagePreviewTag.removeAttribute("src");
+    return;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  imagePreviewTag.src = objectUrl;
+  imagePreview.hidden = false;
+  imagePreviewTag.onload = function () {
+    URL.revokeObjectURL(objectUrl);
+  };
+}
+
+function setupRegistrationImagePreview() {
+  if (!photoUploadInput) {
+    return;
+  }
+
+  photoUploadInput.addEventListener("change", function () {
+    const nextFile = photoUploadInput.files && photoUploadInput.files[0] ? photoUploadInput.files[0] : null;
+    updateImagePreviewFromFile(nextFile);
+  });
+}
+
 function setupBackgroundMusic() {
+  if (!BACKGROUND_MUSIC_PLAYLIST.length) {
+    return;
+  }
+
   const audio = document.createElement("audio");
   let playbackUnlocked = sessionStorage.getItem(BACKGROUND_MUSIC_UNLOCK_KEY) === "true";
+  let trackIndex = Number(sessionStorage.getItem(BACKGROUND_MUSIC_TRACK_INDEX_KEY) || "0");
 
-  audio.src = BACKGROUND_MUSIC_URL;
-  audio.loop = true;
+  if (!Number.isInteger(trackIndex) || trackIndex < 0 || trackIndex >= BACKGROUND_MUSIC_PLAYLIST.length) {
+    trackIndex = 0;
+  }
+
+  audio.src = BACKGROUND_MUSIC_PLAYLIST[trackIndex];
   audio.preload = "auto";
   audio.setAttribute("playsinline", "");
   audio.style.display = "none";
   document.body.appendChild(audio);
 
+  function syncStoredPlayback() {
+    sessionStorage.setItem(BACKGROUND_MUSIC_TRACK_INDEX_KEY, String(trackIndex));
+    sessionStorage.setItem(BACKGROUND_MUSIC_TIME_KEY, String(audio.currentTime || 0));
+  }
+
+  function loadTrack(nextTrackIndex, startTime) {
+    trackIndex = nextTrackIndex;
+    sessionStorage.setItem(BACKGROUND_MUSIC_TRACK_INDEX_KEY, String(trackIndex));
+    sessionStorage.setItem(BACKGROUND_MUSIC_TIME_KEY, String(startTime || 0));
+    audio.src = BACKGROUND_MUSIC_PLAYLIST[trackIndex];
+    audio.load();
+  }
+
   audio.addEventListener("loadedmetadata", function () {
+    const savedTrackIndex = Number(sessionStorage.getItem(BACKGROUND_MUSIC_TRACK_INDEX_KEY) || String(trackIndex));
     const savedTime = Number(sessionStorage.getItem(BACKGROUND_MUSIC_TIME_KEY) || "0");
 
-    if (Number.isFinite(savedTime) && savedTime > 0 && savedTime < audio.duration) {
+    if (
+      savedTrackIndex === trackIndex &&
+      Number.isFinite(savedTime) &&
+      savedTime > 0 &&
+      savedTime < audio.duration
+    ) {
       audio.currentTime = savedTime;
     }
   });
 
   audio.addEventListener("timeupdate", function () {
-    sessionStorage.setItem(BACKGROUND_MUSIC_TIME_KEY, String(audio.currentTime || 0));
+    syncStoredPlayback();
   });
 
   audio.addEventListener("play", function () {
@@ -228,12 +352,18 @@ function setupBackgroundMusic() {
     sessionStorage.setItem(BACKGROUND_MUSIC_UNLOCK_KEY, "true");
   });
 
+  audio.addEventListener("ended", function () {
+    const nextTrackIndex = (trackIndex + 1) % BACKGROUND_MUSIC_PLAYLIST.length;
+    loadTrack(nextTrackIndex, 0);
+    startPlayback();
+  });
+
   audio.addEventListener("error", function () {
     sessionStorage.removeItem(BACKGROUND_MUSIC_UNLOCK_KEY);
   });
 
   function rememberTime() {
-    sessionStorage.setItem(BACKGROUND_MUSIC_TIME_KEY, String(audio.currentTime || 0));
+    syncStoredPlayback();
   }
 
   async function startPlayback() {
@@ -261,7 +391,6 @@ function setupBackgroundMusic() {
       }
     });
   }
-
   startPlayback();
   document.addEventListener("click", unlockPlayback);
   document.addEventListener("keydown", unlockPlayback);
@@ -298,6 +427,7 @@ function createExcelContent(submissions) {
           <td>${escapeHtml(item.strength)}</td>
           <td>${escapeHtml(item.expectation.length ? item.expectation.join(", ") : "")}</td>
           <td>${escapeHtml(item.availability || "")}</td>
+          <td>${item.photoDataUrl ? "Có ảnh" : "Không"}</td>
         </tr>
       `;
     })
@@ -327,6 +457,7 @@ function createExcelContent(submissions) {
               <th>Điểm mạnh</th>
               <th>Mong muốn nhận được</th>
               <th>Khả năng tham gia</th>
+              <th>Ảnh đính kèm</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -428,6 +559,13 @@ async function renderSubmissionList() {
           <strong>Mong muốn nhận được</strong>
           <p>${escapeHtml(item.expectation.length ? item.expectation.join(", ") : "Không chọn")}</p>
         </div>
+        ${item.photoDataUrl ? `
+        <div class="data-block">
+          <strong>Ảnh đã tải lên</strong>
+          <div class="submission-image-wrap">
+            <img class="submission-image" src="${escapeHtml(item.photoDataUrl)}" alt="Ảnh của ${escapeHtml(item.fullName)}" />
+          </div>
+        </div>` : ""}
       </div>
     `;
     submissionList.appendChild(card);
@@ -474,10 +612,11 @@ if (registrationForm && successMessage) {
       return;
     }
 
-    const payload = collectFormData(registrationForm);
     successMessage.classList.remove("show", "error");
 
     try {
+      const payload = await collectFormData(registrationForm);
+
       await apiRequest("create_submission", {
         method: "POST",
         body: JSON.stringify(payload),
@@ -487,10 +626,11 @@ if (registrationForm && successMessage) {
         "Đã gửi đăng ký thành công.";
       successMessage.classList.add("show");
       registrationForm.reset();
+      updateImagePreviewFromFile(null);
       registrationForm.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (error) {
       successMessage.textContent =
-        "Khong gui duoc du lieu len server. Vui long kiem tra Vercel, Supabase va route /api.";
+        error.message || "Khong gui duoc du lieu len server. Vui long kiem tra Vercel, Supabase va route /api.";
       successMessage.classList.add("error", "show");
     }
   });
@@ -611,6 +751,7 @@ if (exportExcelBtn) {
 
 async function initializePage() {
   setupBackgroundMusic();
+  setupRegistrationImagePreview();
   await renderNavigationAuth();
 
   if (isCurrentPage("admin.html")) {
