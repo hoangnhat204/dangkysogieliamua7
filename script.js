@@ -391,7 +391,7 @@ async function renderNavigationAuth() {
           type: "link",
           href: "admin.html",
           label: "Admin",
-          icon: "A",
+          icon: "BTC",
         });
 
     document.body.appendChild(authFab);
