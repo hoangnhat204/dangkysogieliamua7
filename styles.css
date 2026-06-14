@@ -1352,6 +1352,7 @@ main > .section-card > .section-intro {
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
+  width: 100%;
 }
 
 .toolbar-search {
@@ -1390,10 +1391,11 @@ main > .section-card > .section-intro {
 
 .toolbar-actions {
   display: flex;
+  width: 100%;
   gap: 10px;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .toolbar-actions .button {
