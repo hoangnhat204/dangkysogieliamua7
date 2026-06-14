@@ -435,6 +435,36 @@ module.exports = async (req, res) => {
       return;
     }
 
+    if (method === "POST" && action === "delete_selected_submissions") {
+      if (!requireAdminRequest(req, res)) {
+        return;
+      }
+
+      const body = await readRequestBody(req);
+      const rawIds = Array.isArray(body.ids) ? body.ids : [];
+      const submissionIds = rawIds
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0);
+
+      if (!submissionIds.length) {
+        sendJson(res, {
+          ok: false,
+          message: "Chua chon ho so hop le de xoa.",
+        }, 422);
+        return;
+      }
+
+      await supabaseRequest(`submissions?id=in.(${submissionIds.join(",")})`, {
+        method: "DELETE",
+      });
+
+      sendJson(res, {
+        ok: true,
+        deletedIds: submissionIds,
+      });
+      return;
+    }
+
     sendJson(res, {
       ok: false,
       message: "API khong hop le.",

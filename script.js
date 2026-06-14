@@ -20,6 +20,7 @@ let hideDataBtn;
 let restoreDataBtn;
 let exportExcelBtn;
 let hideSelectedBtn;
+let deleteSelectedBtn;
 let submissionSearchInput;
 let photoUploadInput;
 let imagePreview;
@@ -38,6 +39,7 @@ function cacheDomElements() {
   restoreDataBtn = document.getElementById("restoreDataBtn");
   exportExcelBtn = document.getElementById("exportExcelBtn");
   hideSelectedBtn = document.getElementById("hideSelectedBtn");
+  deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
   submissionSearchInput = document.getElementById("submissionSearch");
   photoUploadInput = document.getElementById("photoUpload");
   imagePreview = document.getElementById("imagePreview");
@@ -200,51 +202,6 @@ function setupNavigationMenus() {
   });
 }
 
-function setupToolbarMenus() {
-  document.querySelectorAll(".toolbar").forEach(function (toolbarElement, index) {
-    const toolbarActions = toolbarElement.querySelector(".toolbar-actions");
-
-    if (!toolbarActions) {
-      return;
-    }
-
-    toolbarElement.classList.add("has-toolbar-menu");
-
-    if (toolbarElement.querySelector(".toolbar-menu-toggle")) {
-      return;
-    }
-
-    const menuId = toolbarActions.id || `toolbar-actions-${index + 1}`;
-    toolbarActions.id = menuId;
-
-    const menuToggle = document.createElement("button");
-    menuToggle.type = "button";
-    menuToggle.className = "toolbar-menu-toggle button button-secondary";
-    menuToggle.setAttribute("aria-expanded", "false");
-    menuToggle.setAttribute("aria-controls", menuId);
-    menuToggle.innerHTML = '<span>Tác vụ</span><span class="menu-toggle-icon" aria-hidden="true"><span></span><span></span><span></span></span>';
-
-    menuToggle.addEventListener("click", function () {
-      const shouldOpen = !toolbarActions.classList.contains("is-open");
-
-      closeToolbarMenus();
-
-      if (shouldOpen) {
-        toolbarActions.classList.add("is-open");
-        menuToggle.setAttribute("aria-expanded", "true");
-      }
-    });
-
-    toolbarActions.addEventListener("click", function (event) {
-      if (event.target.closest("button, a")) {
-        closeToolbarMenus();
-      }
-    });
-
-    toolbarElement.insertBefore(menuToggle, toolbarActions);
-  });
-}
-
 function isInternalNavigationLink(link) {
   if (!(link instanceof HTMLAnchorElement)) {
     return false;
@@ -343,7 +300,6 @@ async function navigateToInternalPage(url, options = {}) {
   selectedSubmissionIds.clear();
   setupRegistrationImagePreview();
   setupNavigationMenus();
-  setupToolbarMenus();
   await renderNavigationAuth();
 
   if (isCurrentPage("admin.html")) {
@@ -732,14 +688,22 @@ function syncSelectedSubmissionIds(items) {
   });
 }
 
-function updateDeleteSelectedButton() {
-  if (!hideSelectedBtn) {
+function updateSelectedActionButtons() {
+  if (!hideSelectedBtn && !deleteSelectedBtn) {
     return;
   }
 
   const selectedCount = selectedSubmissionIds.size;
-  hideSelectedBtn.disabled = selectedCount === 0;
-  hideSelectedBtn.textContent = selectedCount ? `Ẩn ${selectedCount} thí sinh đã chọn` : "Ẩn thí sinh đã chọn";
+
+  if (hideSelectedBtn) {
+    hideSelectedBtn.disabled = selectedCount === 0;
+    hideSelectedBtn.textContent = selectedCount ? `Ẩn ${selectedCount} thí sinh đã chọn` : "Ẩn thí sinh đã chọn";
+  }
+
+  if (deleteSelectedBtn) {
+    deleteSelectedBtn.disabled = selectedCount === 0;
+    deleteSelectedBtn.textContent = selectedCount ? `Xóa ${selectedCount} thí sinh đã chọn` : "Xóa thí sinh đã chọn";
+  }
 }
 
 function createExcelContent(submissions) {
@@ -830,6 +794,17 @@ async function hideSelectedSubmissions(ids) {
   return Array.isArray(data.hiddenIds) ? data.hiddenIds : [];
 }
 
+async function deleteSelectedSubmissions(ids) {
+  const data = await apiRequest("delete_selected_submissions", {
+    method: "POST",
+    body: JSON.stringify({
+      ids: ids,
+    }),
+  });
+
+  return Array.isArray(data.deletedIds) ? data.deletedIds : [];
+}
+
 async function renderSubmissionList() {
   if (!submissionList || !emptyState || !submissionCount) {
     return;
@@ -864,7 +839,7 @@ async function renderSubmissionList() {
   });
   submissionCount.textContent = `${visibleSubmissions.length} hồ sơ đang hiển thị${hiddenSubmissions.length ? ` | ${hiddenSubmissions.length} hồ sơ đã ẩn` : ""}${keyword.trim() ? ` | ${matchedSubmissions.length} kết quả phù hợp` : ""}${selectedSubmissionIds.size ? ` | ${selectedSubmissionIds.size} hồ sơ đã chọn` : ""}`;
   submissionList.innerHTML = "";
-  updateDeleteSelectedButton();
+  updateSelectedActionButtons();
 
   if (restoreDataBtn) {
     restoreDataBtn.hidden = hiddenSubmissions.length === 0;
@@ -1032,6 +1007,7 @@ document.addEventListener("click", async function (event) {
   const restoreDataControl = event.target.closest("#restoreDataBtn");
   const exportExcelControl = event.target.closest("#exportExcelBtn");
   const hideSelectedControl = event.target.closest("#hideSelectedBtn");
+  const deleteSelectedControl = event.target.closest("#deleteSelectedBtn");
 
   if (
     navigationLink &&
@@ -1196,7 +1172,37 @@ document.addEventListener("click", async function (event) {
       }
 
       window.alert("Khong an duoc cac ho so da chon.");
-      updateDeleteSelectedButton();
+      updateSelectedActionButtons();
+    }
+
+    return;
+  }
+
+  if (deleteSelectedControl) {
+    const ids = Array.from(selectedSubmissionIds);
+
+    if (!ids.length) {
+      return;
+    }
+
+    if (!window.confirm(`Bạn có chắc muốn xóa ${ids.length} thí sinh đã chọn khỏi hệ thống không?`)) {
+      return;
+    }
+
+    deleteSelectedControl.disabled = true;
+
+    try {
+      await deleteSelectedSubmissions(ids);
+      selectedSubmissionIds.clear();
+      await renderSubmissionList();
+    } catch (error) {
+      if (error.status === 401) {
+        redirectToLogin();
+        return;
+      }
+
+      window.alert("Khong xoa duoc cac ho so da chon.");
+      updateSelectedActionButtons();
     }
 
     return;
@@ -1251,7 +1257,7 @@ document.addEventListener("change", function (event) {
     selectedSubmissionIds.delete(submissionId);
   }
 
-  updateDeleteSelectedButton();
+  updateSelectedActionButtons();
 
   if (submissionCount && submissionList) {
     renderSubmissionList();
@@ -1270,7 +1276,6 @@ document.addEventListener("click", function (event) {
   }
 
   if (!event.target.closest(".toolbar")) {
-    closeToolbarMenus();
   }
 });
 
@@ -1279,18 +1284,6 @@ window.addEventListener("resize", function () {
     closeSiteNavMenus();
     closeToolbarMenus();
   }
-});
-
-window.addEventListener("scroll", function () {
-  closeToolbarMenus();
-}, {
-  passive: true,
-});
-
-window.addEventListener("touchmove", function () {
-  closeToolbarMenus();
-}, {
-  passive: true,
 });
 
 window.addEventListener("popstate", async function () {
@@ -1305,7 +1298,6 @@ async function initializePage() {
   setupBackgroundMusic();
   setupRegistrationImagePreview();
   setupNavigationMenus();
-  setupToolbarMenus();
   renderZaloFab();
   await renderNavigationAuth();
 
