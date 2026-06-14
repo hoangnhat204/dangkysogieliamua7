@@ -8,10 +8,13 @@ const submissionCount = document.getElementById("submissionCount");
 const hideDataBtn = document.getElementById("hideDataBtn");
 const restoreDataBtn = document.getElementById("restoreDataBtn");
 const exportExcelBtn = document.getElementById("exportExcelBtn");
+const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
+const submissionSearchInput = document.getElementById("submissionSearch");
 const photoUploadInput = document.getElementById("photoUpload");
 const imagePreview = document.getElementById("imagePreview");
 const imagePreviewTag = document.getElementById("imagePreviewTag");
 const API_BASE_URL = "/api";
+const ZALO_GROUP_URL = "https://zalo.me/g/ukavrwis9myzilvd8yjq";
 const BACKGROUND_MUSIC_PLAYLIST = [
   "assets/duonglendinh.mp3",
   "assets/kinhvanhoa.mp3",
@@ -20,6 +23,7 @@ const BACKGROUND_MUSIC_TIME_KEY = "sogieliaBackgroundMusicTime";
 const BACKGROUND_MUSIC_UNLOCK_KEY = "sogieliaBackgroundMusicUnlocked";
 const BACKGROUND_MUSIC_TRACK_INDEX_KEY = "sogieliaBackgroundMusicTrackIndex";
 const MAX_UPLOAD_IMAGE_SIZE = 10 * 1024 * 1024;
+const selectedSubmissionIds = new Set();
 
 function isCurrentPage(pageName) {
   const path = window.location.pathname.toLowerCase();
@@ -43,16 +47,20 @@ function clearExistingAuthControls(navLinks) {
 }
 
 function removeExistingAuthFab() {
-  const existingFab = document.querySelector(".auth-fab");
+  document.querySelectorAll(".auth-fab").forEach(function (element) {
+    element.remove();
+  });
+}
 
-  if (existingFab) {
-    existingFab.remove();
-  }
+function removeExistingZaloFab() {
+  document.querySelectorAll(".zalo-fab").forEach(function (element) {
+    element.remove();
+  });
 }
 
 function createAuthFab(config) {
   const element = document.createElement(config.type === "button" ? "button" : "a");
-  element.className = "auth-fab";
+  element.className = "floating-fab auth-fab";
   element.setAttribute("aria-label", config.label);
   element.title = config.label;
   element.innerHTML = `<span class="auth-fab-icon" aria-hidden="true">${config.icon}</span>`;
@@ -65,6 +73,20 @@ function createAuthFab(config) {
   }
 
   return element;
+}
+
+function renderZaloFab() {
+  removeExistingZaloFab();
+
+  const zaloFab = document.createElement("a");
+  zaloFab.className = "floating-fab zalo-fab";
+  zaloFab.href = ZALO_GROUP_URL;
+  zaloFab.target = "_blank";
+  zaloFab.rel = "noopener noreferrer";
+  zaloFab.setAttribute("aria-label", "ZALO");
+  zaloFab.title = "ZALO";
+  zaloFab.innerHTML = '<span class="auth-fab-icon" aria-hidden="true">ZALO</span>';
+  document.body.appendChild(zaloFab);
 }
 
 async function renderNavigationAuth() {
@@ -409,6 +431,42 @@ function getHiddenSubmissions(items) {
   });
 }
 
+function filterSubmissionsByName(items, keyword) {
+  const normalizedKeyword = String(keyword || "").trim().toLowerCase();
+
+  if (!normalizedKeyword) {
+    return items.slice();
+  }
+
+  return items.filter(function (item) {
+    return String(item.fullName || "").toLowerCase().includes(normalizedKeyword);
+  });
+}
+
+function syncSelectedSubmissionIds(items) {
+  const validIds = new Set(
+    items.map(function (item) {
+      return Number(item.id);
+    })
+  );
+
+  Array.from(selectedSubmissionIds).forEach(function (id) {
+    if (!validIds.has(id)) {
+      selectedSubmissionIds.delete(id);
+    }
+  });
+}
+
+function updateDeleteSelectedButton() {
+  if (!deleteSelectedBtn) {
+    return;
+  }
+
+  const selectedCount = selectedSubmissionIds.size;
+  deleteSelectedBtn.disabled = selectedCount === 0;
+  deleteSelectedBtn.textContent = selectedCount ? `Xóa ${selectedCount} thí sinh đã chọn` : "Xóa thí sinh đã chọn";
+}
+
 function createExcelContent(submissions) {
   const rows = submissions
     .map(function (item) {
@@ -474,6 +532,29 @@ async function fetchSubmissions() {
   return Array.isArray(data.items) ? data.items : [];
 }
 
+async function updateSubmissionVisibility(id, hidden) {
+  const data = await apiRequest("update_submission_visibility", {
+    method: "POST",
+    body: JSON.stringify({
+      id: id,
+      hidden: hidden,
+    }),
+  });
+
+  return data.item || null;
+}
+
+async function deleteSelectedSubmissions(ids) {
+  const data = await apiRequest("delete_selected_submissions", {
+    method: "POST",
+    body: JSON.stringify({
+      ids: ids,
+    }),
+  });
+
+  return Array.isArray(data.deletedIds) ? data.deletedIds : [];
+}
+
 async function renderSubmissionList() {
   if (!submissionList || !emptyState || !submissionCount) {
     return;
@@ -498,38 +579,60 @@ async function renderSubmissionList() {
     return;
   }
 
+  syncSelectedSubmissionIds(submissions);
+
   const visibleSubmissions = getVisibleSubmissions(submissions);
   const hiddenSubmissions = getHiddenSubmissions(submissions);
-  submissionCount.textContent = `${visibleSubmissions.length} hồ sơ đang hiển thị${hiddenSubmissions.length ? ` | ${hiddenSubmissions.length} hồ sơ đã ẩn` : ""}`;
+  const keyword = submissionSearchInput ? submissionSearchInput.value : "";
+  const matchedSubmissions = filterSubmissionsByName(submissions, keyword).sort(function (left, right) {
+    if (left.hidden !== right.hidden) {
+      return Number(left.hidden) - Number(right.hidden);
+    }
+
+    return new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime();
+  });
+  submissionCount.textContent = `${visibleSubmissions.length} hồ sơ đang hiển thị${hiddenSubmissions.length ? ` | ${hiddenSubmissions.length} hồ sơ đã ẩn` : ""}${keyword.trim() ? ` | ${matchedSubmissions.length} kết quả phù hợp` : ""}${selectedSubmissionIds.size ? ` | ${selectedSubmissionIds.size} hồ sơ đã chọn` : ""}`;
   submissionList.innerHTML = "";
+  updateDeleteSelectedButton();
 
   if (restoreDataBtn) {
     restoreDataBtn.hidden = hiddenSubmissions.length === 0;
   }
 
-  if (!visibleSubmissions.length) {
+  if (!submissions.length) {
     emptyState.hidden = false;
-    emptyState.innerHTML = hiddenSubmissions.length
-      ? `Hiện không có hồ sơ nào đang hiển thị. Có ${hiddenSubmissions.length} hồ sơ đã được ẩn.`
-      : `Chưa có hồ sơ nào trong cơ sở dữ liệu admin. Khi thí sinh bấm gửi từ
+    emptyState.innerHTML = `Chưa có hồ sơ nào trong cơ sở dữ liệu admin. Khi thí sinh bấm gửi từ
             <a class="inline-link" href="dang-ky.html">trang đăng ký</a>,
             dữ liệu sẽ xuất hiện tại đây.`;
     return;
   }
 
+  if (!matchedSubmissions.length) {
+    emptyState.hidden = false;
+    emptyState.textContent = "Không tìm thấy hồ sơ nào khớp với tên bạn đang tìm.";
+    return;
+  }
+
   emptyState.hidden = true;
 
-  visibleSubmissions.forEach(function (item) {
+  matchedSubmissions.forEach(function (item) {
     const card = document.createElement("details");
-    card.className = "data-card";
+    card.className = `data-card${item.hidden ? " is-hidden-card" : ""}`;
     card.innerHTML = `
       <summary>
         <div class="data-card-head">
+          <label class="submission-select-control" aria-label="Chọn hồ sơ ${escapeHtml(item.fullName)} để xóa">
+            <input type="checkbox" class="submission-select-checkbox" data-submission-select-id="${item.id}" ${selectedSubmissionIds.has(Number(item.id)) ? "checked" : ""} />
+            <span>Chọn</span>
+          </label>
           <div>
             <h3>${escapeHtml(item.fullName)}</h3>
             <p>${escapeHtml(item.email)} | ${escapeHtml(item.phone)}</p>
           </div>
-          <span class="date">${escapeHtml(formatDateTime(item.submittedAt))}</span>
+          <div class="data-card-meta">
+            <span class="status-pill${item.hidden ? " is-hidden" : ""}">${item.hidden ? "Đã ẩn" : "Đang hiện"}</span>
+            <span class="date">${escapeHtml(formatDateTime(item.submittedAt))}</span>
+          </div>
         </div>
       </summary>
       <div class="data-card-body">
@@ -566,6 +669,11 @@ async function renderSubmissionList() {
             <img class="submission-image" src="${escapeHtml(item.photoDataUrl)}" alt="Ảnh của ${escapeHtml(item.fullName)}" />
           </div>
         </div>` : ""}
+        <div class="data-card-actions print-hidden">
+          <button class="button button-secondary" type="button" data-submission-visibility-id="${item.id}" data-submission-hidden-target="${item.hidden ? "false" : "true"}">
+            ${item.hidden ? "Hiện hồ sơ này" : "Ẩn hồ sơ này"}
+          </button>
+        </div>
       </div>
     `;
     submissionList.appendChild(card);
@@ -637,6 +745,45 @@ if (registrationForm && successMessage) {
 
 document.addEventListener("click", async function (event) {
   const logoutControl = event.target.closest('button[data-auth-action="logout"], #logoutButton');
+  const visibilityControl = event.target.closest("button[data-submission-visibility-id]");
+  const submissionSelectControl = event.target.closest(".submission-select-control");
+
+  if (submissionSelectControl) {
+    const submissionSelectCheckbox = submissionSelectControl.querySelector("input[data-submission-select-id]");
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (submissionSelectCheckbox) {
+      submissionSelectCheckbox.checked = !submissionSelectCheckbox.checked;
+      submissionSelectCheckbox.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    return;
+  }
+
+  if (visibilityControl) {
+    const submissionId = Number(visibilityControl.dataset.submissionVisibilityId || "0");
+    const hiddenTarget = visibilityControl.dataset.submissionHiddenTarget === "true";
+
+    visibilityControl.disabled = true;
+
+    try {
+      await updateSubmissionVisibility(submissionId, hiddenTarget);
+      await renderSubmissionList();
+    } catch (error) {
+      if (error.status === 401) {
+        redirectToLogin();
+        return;
+      }
+
+      window.alert("Khong cap nhat duoc trang thai hien/ an cho ho so nay.");
+    } finally {
+      visibilityControl.disabled = false;
+    }
+
+    return;
+  }
 
   if (!logoutControl) {
     return;
@@ -658,6 +805,33 @@ document.addEventListener("click", async function (event) {
   }
 
   window.location.href = "login.html";
+});
+
+document.addEventListener("change", function (event) {
+  const submissionSelectCheckbox = event.target.closest("input[data-submission-select-id]");
+
+  if (!submissionSelectCheckbox) {
+    return;
+  }
+
+  const submissionId = Number(submissionSelectCheckbox.dataset.submissionSelectId || "0");
+
+  if (!Number.isInteger(submissionId) || submissionId <= 0) {
+    submissionSelectCheckbox.checked = false;
+    return;
+  }
+
+  if (submissionSelectCheckbox.checked) {
+    selectedSubmissionIds.add(submissionId);
+  } else {
+    selectedSubmissionIds.delete(submissionId);
+  }
+
+  updateDeleteSelectedButton();
+
+  if (submissionCount && submissionList) {
+    renderSubmissionList();
+  }
 });
 
 if (hideDataBtn) {
@@ -748,9 +922,46 @@ if (exportExcelBtn) {
   });
 }
 
+if (deleteSelectedBtn) {
+  deleteSelectedBtn.addEventListener("click", async function () {
+    const ids = Array.from(selectedSubmissionIds);
+
+    if (!ids.length) {
+      return;
+    }
+
+    if (!window.confirm(`Bạn có chắc muốn xóa ${ids.length} thí sinh đã chọn khỏi database không?`)) {
+      return;
+    }
+
+    deleteSelectedBtn.disabled = true;
+
+    try {
+      await deleteSelectedSubmissions(ids);
+      selectedSubmissionIds.clear();
+      await renderSubmissionList();
+    } catch (error) {
+      if (error.status === 401) {
+        redirectToLogin();
+        return;
+      }
+
+      window.alert("Khong xoa duoc cac ho so da chon.");
+      updateDeleteSelectedButton();
+    }
+  });
+}
+
+if (submissionSearchInput) {
+  submissionSearchInput.addEventListener("input", function () {
+    renderSubmissionList();
+  });
+}
+
 async function initializePage() {
   setupBackgroundMusic();
   setupRegistrationImagePreview();
+  renderZaloFab();
   await renderNavigationAuth();
 
   if (isCurrentPage("admin.html")) {

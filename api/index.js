@@ -64,6 +64,18 @@ function requireFields(body, fields) {
   }
 }
 
+function requireAdminRequest(req, res) {
+  if (!isAuthenticated(req)) {
+    sendJson(res, {
+      ok: false,
+      message: "Ban can dang nhap admin.",
+    }, 401);
+    return false;
+  }
+
+  return true;
+}
+
 function normalizeSubmission(row) {
   let expectation = [];
 
@@ -263,11 +275,7 @@ module.exports = async (req, res) => {
     }
 
     if (method === "GET" && action === "list_submissions") {
-      if (!isAuthenticated(req)) {
-        sendJson(res, {
-          ok: false,
-          message: "Ban can dang nhap admin.",
-        }, 401);
+      if (!requireAdminRequest(req, res)) {
         return;
       }
 
@@ -329,11 +337,7 @@ module.exports = async (req, res) => {
     }
 
     if (method === "POST" && action === "hide_all_submissions") {
-      if (!isAuthenticated(req)) {
-        sendJson(res, {
-          ok: false,
-          message: "Ban can dang nhap admin.",
-        }, 401);
+      if (!requireAdminRequest(req, res)) {
         return;
       }
 
@@ -349,11 +353,7 @@ module.exports = async (req, res) => {
     }
 
     if (method === "POST" && action === "restore_all_submissions") {
-      if (!isAuthenticated(req)) {
-        sendJson(res, {
-          ok: false,
-          message: "Ban can dang nhap admin.",
-        }, 401);
+      if (!requireAdminRequest(req, res)) {
         return;
       }
 
@@ -365,6 +365,70 @@ module.exports = async (req, res) => {
       });
 
       sendJson(res, { ok: true });
+      return;
+    }
+
+    if (method === "POST" && action === "update_submission_visibility") {
+      if (!requireAdminRequest(req, res)) {
+        return;
+      }
+
+      const body = await readRequestBody(req);
+      const submissionId = Number(body.id);
+
+      if (!Number.isInteger(submissionId) || submissionId <= 0) {
+        sendJson(res, {
+          ok: false,
+          message: "ID ho so khong hop le.",
+        }, 422);
+        return;
+      }
+
+      const hidden = Boolean(body.hidden);
+      const updatedRows = await supabaseRequest(`submissions?id=eq.${submissionId}`, {
+        method: "PATCH",
+        prefer: "return=representation",
+        body: {
+          hidden: hidden,
+        },
+      });
+
+      const updatedItem = Array.isArray(updatedRows) && updatedRows.length ? updatedRows[0] : null;
+
+      sendJson(res, {
+        ok: true,
+        item: updatedItem ? normalizeSubmission(updatedItem) : null,
+      });
+      return;
+    }
+
+    if (method === "POST" && action === "delete_selected_submissions") {
+      if (!requireAdminRequest(req, res)) {
+        return;
+      }
+
+      const body = await readRequestBody(req);
+      const rawIds = Array.isArray(body.ids) ? body.ids : [];
+      const submissionIds = rawIds
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0);
+
+      if (!submissionIds.length) {
+        sendJson(res, {
+          ok: false,
+          message: "Chua chon ho so hop le de xoa.",
+        }, 422);
+        return;
+      }
+
+      await supabaseRequest(`submissions?id=in.(${submissionIds.join(",")})`, {
+        method: "DELETE",
+      });
+
+      sendJson(res, {
+        ok: true,
+        deletedIds: submissionIds,
+      });
       return;
     }
 

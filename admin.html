@@ -53,9 +53,16 @@
 
         <section class="section-card">
           <div class="toolbar print-hidden">
-            <span class="count-pill" id="submissionCount">0 hồ sơ trong cơ sở dữ liệu admin</span>
+            <div class="toolbar-main">
+              <span class="count-pill" id="submissionCount">0 hồ sơ trong cơ sở dữ liệu admin</span>
+              <div class="toolbar-search">
+                <label class="sr-only" for="submissionSearch">Tìm theo tên</label>
+                <input id="submissionSearch" type="search" placeholder="Tìm nhanh theo tên thí sinh" />
+              </div>
+            </div>
             <div class="toolbar-actions">
               <button class="button button-secondary" id="exportExcelBtn" type="button">Xuất Excel</button>
+              <button class="button button-secondary" id="deleteSelectedBtn" type="button" disabled>Xóa thí sinh đã chọn</button>
               <button class="button button-secondary" id="restoreDataBtn" type="button" hidden>Hiện lại dữ liệu ẩn</button>
               <button class="button button-secondary" id="hideDataBtn" type="button">Ẩn dữ liệu</button>
             </div>
