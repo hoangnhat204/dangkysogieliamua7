@@ -1281,6 +1281,18 @@ window.addEventListener("resize", function () {
   }
 });
 
+window.addEventListener("scroll", function () {
+  closeToolbarMenus();
+}, {
+  passive: true,
+});
+
+window.addEventListener("touchmove", function () {
+  closeToolbarMenus();
+}, {
+  passive: true,
+});
+
 window.addEventListener("popstate", async function () {
   await navigateToInternalPage(window.location.href, {
     replaceState: true,

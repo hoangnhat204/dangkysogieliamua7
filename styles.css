@@ -1428,6 +1428,10 @@ main > .section-card > .section-intro {
   min-width: 0;
 }
 
+.toolbar.has-toolbar-menu .toolbar-menu-toggle {
+  margin-left: auto;
+}
+
 .count-pill {
   display: inline-flex;
   align-items: center;
@@ -1844,8 +1848,16 @@ details p {
   }
 
   .toolbar-actions {
+    position: static;
+    right: auto;
+    top: auto;
+    z-index: auto;
+    width: 100%;
+    min-width: 0;
+    margin-top: 10px;
     padding: 10px;
     border-radius: 20px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
   }
 
   .toolbar-actions .button {
