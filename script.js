@@ -1,18 +1,3 @@
-const registrationForm = document.getElementById("registrationForm");
-const successMessage = document.getElementById("successMessage");
-const loginForm = document.getElementById("loginForm");
-const loginMessage = document.getElementById("loginMessage");
-const submissionList = document.getElementById("submissionList");
-const emptyState = document.getElementById("emptyState");
-const submissionCount = document.getElementById("submissionCount");
-const hideDataBtn = document.getElementById("hideDataBtn");
-const restoreDataBtn = document.getElementById("restoreDataBtn");
-const exportExcelBtn = document.getElementById("exportExcelBtn");
-const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
-const submissionSearchInput = document.getElementById("submissionSearch");
-const photoUploadInput = document.getElementById("photoUpload");
-const imagePreview = document.getElementById("imagePreview");
-const imagePreviewTag = document.getElementById("imagePreviewTag");
 const API_BASE_URL = "/api";
 const ZALO_GROUP_URL = "https://zalo.me/g/ukavrwis9myzilvd8yjq";
 const BACKGROUND_MUSIC_PLAYLIST = [
@@ -24,6 +9,40 @@ const BACKGROUND_MUSIC_UNLOCK_KEY = "sogieliaBackgroundMusicUnlocked";
 const BACKGROUND_MUSIC_TRACK_INDEX_KEY = "sogieliaBackgroundMusicTrackIndex";
 const MAX_UPLOAD_IMAGE_SIZE = 10 * 1024 * 1024;
 const selectedSubmissionIds = new Set();
+let registrationForm;
+let successMessage;
+let loginForm;
+let loginMessage;
+let submissionList;
+let emptyState;
+let submissionCount;
+let hideDataBtn;
+let restoreDataBtn;
+let exportExcelBtn;
+let hideSelectedBtn;
+let submissionSearchInput;
+let photoUploadInput;
+let imagePreview;
+let imagePreviewTag;
+let backgroundMusicAudio = null;
+
+function cacheDomElements() {
+  registrationForm = document.getElementById("registrationForm");
+  successMessage = document.getElementById("successMessage");
+  loginForm = document.getElementById("loginForm");
+  loginMessage = document.getElementById("loginMessage");
+  submissionList = document.getElementById("submissionList");
+  emptyState = document.getElementById("emptyState");
+  submissionCount = document.getElementById("submissionCount");
+  hideDataBtn = document.getElementById("hideDataBtn");
+  restoreDataBtn = document.getElementById("restoreDataBtn");
+  exportExcelBtn = document.getElementById("exportExcelBtn");
+  hideSelectedBtn = document.getElementById("hideSelectedBtn");
+  submissionSearchInput = document.getElementById("submissionSearch");
+  photoUploadInput = document.getElementById("photoUpload");
+  imagePreview = document.getElementById("imagePreview");
+  imagePreviewTag = document.getElementById("imagePreviewTag");
+}
 
 function isCurrentPage(pageName) {
   const path = window.location.pathname.toLowerCase();
@@ -35,7 +54,11 @@ function isCurrentPage(pageName) {
 }
 
 function redirectToLogin() {
-  window.location.href = "login.html";
+  if (isCurrentPage("login.html")) {
+    return;
+  }
+
+  navigateToInternalPage("login.html");
 }
 
 function clearExistingAuthControls(navLinks) {
@@ -89,11 +112,258 @@ function renderZaloFab() {
   document.body.appendChild(zaloFab);
 }
 
+function isMobileViewport() {
+  return window.innerWidth <= 720;
+}
+
+function updateNavigationMenuState(navLinks) {
+  if (!navLinks) {
+    return;
+  }
+
+  const navElement = navLinks.closest(".site-nav");
+  const menuToggle = navElement ? navElement.querySelector(".nav-menu-toggle") : null;
+  const hasMenuItems = Boolean(navLinks.querySelector("a, button"));
+
+  if (menuToggle) {
+    menuToggle.hidden = !hasMenuItems;
+  }
+
+  if (!hasMenuItems) {
+    navLinks.classList.remove("is-open");
+  }
+}
+
+function closeSiteNavMenus() {
+  document.querySelectorAll(".site-nav .nav-links.is-open").forEach(function (element) {
+    element.classList.remove("is-open");
+  });
+
+  document.querySelectorAll(".nav-menu-toggle[aria-expanded='true']").forEach(function (element) {
+    element.setAttribute("aria-expanded", "false");
+  });
+}
+
+function closeToolbarMenus() {
+  document.querySelectorAll(".toolbar .toolbar-actions.is-open").forEach(function (element) {
+    element.classList.remove("is-open");
+  });
+
+  document.querySelectorAll(".toolbar-menu-toggle[aria-expanded='true']").forEach(function (element) {
+    element.setAttribute("aria-expanded", "false");
+  });
+}
+
+function setupNavigationMenus() {
+  document.querySelectorAll(".site-nav").forEach(function (navElement, index) {
+    const navLinks = navElement.querySelector(".nav-links");
+
+    if (!navLinks) {
+      return;
+    }
+
+    navElement.classList.add("has-nav-menu");
+
+    if (navElement.querySelector(".nav-menu-toggle")) {
+      return;
+    }
+
+    const menuId = navLinks.id || `site-nav-links-${index + 1}`;
+    navLinks.id = menuId;
+
+    const menuToggle = document.createElement("button");
+    menuToggle.type = "button";
+    menuToggle.className = "nav-menu-toggle nav-button";
+    menuToggle.setAttribute("aria-expanded", "false");
+    menuToggle.setAttribute("aria-controls", menuId);
+    menuToggle.innerHTML = '<span>Menu</span><span class="menu-toggle-icon" aria-hidden="true"><span></span><span></span><span></span></span>';
+
+    menuToggle.addEventListener("click", function () {
+      const shouldOpen = !navLinks.classList.contains("is-open");
+
+      closeSiteNavMenus();
+
+      if (shouldOpen) {
+        navLinks.classList.add("is-open");
+        menuToggle.setAttribute("aria-expanded", "true");
+      }
+    });
+
+    navLinks.addEventListener("click", function (event) {
+      if (event.target.closest("a, button")) {
+        closeSiteNavMenus();
+      }
+    });
+
+    navElement.insertBefore(menuToggle, navLinks);
+    updateNavigationMenuState(navLinks);
+  });
+}
+
+function setupToolbarMenus() {
+  document.querySelectorAll(".toolbar").forEach(function (toolbarElement, index) {
+    const toolbarActions = toolbarElement.querySelector(".toolbar-actions");
+
+    if (!toolbarActions) {
+      return;
+    }
+
+    toolbarElement.classList.add("has-toolbar-menu");
+
+    if (toolbarElement.querySelector(".toolbar-menu-toggle")) {
+      return;
+    }
+
+    const menuId = toolbarActions.id || `toolbar-actions-${index + 1}`;
+    toolbarActions.id = menuId;
+
+    const menuToggle = document.createElement("button");
+    menuToggle.type = "button";
+    menuToggle.className = "toolbar-menu-toggle button button-secondary";
+    menuToggle.setAttribute("aria-expanded", "false");
+    menuToggle.setAttribute("aria-controls", menuId);
+    menuToggle.innerHTML = '<span>Tác vụ</span><span class="menu-toggle-icon" aria-hidden="true"><span></span><span></span><span></span></span>';
+
+    menuToggle.addEventListener("click", function () {
+      const shouldOpen = !toolbarActions.classList.contains("is-open");
+
+      closeToolbarMenus();
+
+      if (shouldOpen) {
+        toolbarActions.classList.add("is-open");
+        menuToggle.setAttribute("aria-expanded", "true");
+      }
+    });
+
+    toolbarActions.addEventListener("click", function (event) {
+      if (event.target.closest("button, a")) {
+        closeToolbarMenus();
+      }
+    });
+
+    toolbarElement.insertBefore(menuToggle, toolbarActions);
+  });
+}
+
+function isInternalNavigationLink(link) {
+  if (!(link instanceof HTMLAnchorElement)) {
+    return false;
+  }
+
+  const rawHref = link.getAttribute("href") || "";
+
+  if (
+    !rawHref ||
+    rawHref.startsWith("#") ||
+    link.hasAttribute("download") ||
+    link.target === "_blank" ||
+    link.dataset.noAjax === "true"
+  ) {
+    return false;
+  }
+
+  try {
+    const targetUrl = new URL(link.href, window.location.href);
+    const currentUrl = new URL(window.location.href);
+
+    if (targetUrl.origin !== currentUrl.origin) {
+      return false;
+    }
+
+    return /\.html$/i.test(targetUrl.pathname) || targetUrl.pathname === "/" || targetUrl.pathname.endsWith("/");
+  } catch (error) {
+    return false;
+  }
+}
+
+async function navigateToInternalPage(url, options = {}) {
+  const targetUrl = new URL(url, window.location.href);
+
+  if (targetUrl.href === window.location.href && !options.forceLoad) {
+    return;
+  }
+
+  closeSiteNavMenus();
+  closeToolbarMenus();
+
+  let responseText = "";
+
+  try {
+    const response = await fetch(targetUrl.href, {
+      method: "GET",
+      credentials: "same-origin",
+      headers: {
+        "X-Requested-With": "fetch",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Khong tai duoc trang.");
+    }
+
+    responseText = await response.text();
+  } catch (error) {
+    window.location.href = targetUrl.href;
+    return;
+  }
+
+  const parser = new DOMParser();
+  const nextDocument = parser.parseFromString(responseText, "text/html");
+  const nextShell = nextDocument.querySelector(".site-shell");
+  const nextFooter = nextDocument.querySelector(".footer");
+
+  if (!nextShell) {
+    window.location.href = targetUrl.href;
+    return;
+  }
+
+  const currentShell = document.querySelector(".site-shell");
+  const currentFooter = document.querySelector(".footer");
+
+  if (!currentShell) {
+    window.location.href = targetUrl.href;
+    return;
+  }
+
+  currentShell.innerHTML = nextShell.innerHTML;
+
+  if (currentFooter && nextFooter) {
+    currentFooter.innerHTML = nextFooter.innerHTML;
+  }
+
+  document.title = nextDocument.title || document.title;
+
+  if (options.replaceState) {
+    window.history.replaceState({}, "", targetUrl.href);
+  } else {
+    window.history.pushState({}, "", targetUrl.href);
+  }
+
+  cacheDomElements();
+  selectedSubmissionIds.clear();
+  setupRegistrationImagePreview();
+  setupNavigationMenus();
+  setupToolbarMenus();
+  await renderNavigationAuth();
+
+  if (isCurrentPage("admin.html")) {
+    const authenticated = await requireAdminAuth();
+    if (authenticated) {
+      await renderSubmissionList();
+    }
+  } else if (isCurrentPage("login.html")) {
+    await requireAdminAuth();
+  }
+
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+}
+
 async function renderNavigationAuth() {
   const navLinks = document.querySelector(".nav-links");
 
   if (navLinks) {
     clearExistingAuthControls(navLinks);
+    updateNavigationMenuState(navLinks);
   }
 
   removeExistingAuthFab();
@@ -125,6 +395,7 @@ async function renderNavigationAuth() {
         });
 
     document.body.appendChild(authFab);
+    updateNavigationMenuState(navLinks);
     return true;
   }
 
@@ -137,6 +408,7 @@ async function renderNavigationAuth() {
     })
   );
 
+  updateNavigationMenuState(navLinks);
   return false;
 }
 
@@ -309,9 +581,11 @@ function updateImagePreviewFromFile(file) {
 }
 
 function setupRegistrationImagePreview() {
-  if (!photoUploadInput) {
+  if (!photoUploadInput || photoUploadInput.dataset.previewBound === "true") {
     return;
   }
+
+  photoUploadInput.dataset.previewBound = "true";
 
   photoUploadInput.addEventListener("change", function () {
     const nextFile = photoUploadInput.files && photoUploadInput.files[0] ? photoUploadInput.files[0] : null;
@@ -320,11 +594,12 @@ function setupRegistrationImagePreview() {
 }
 
 function setupBackgroundMusic() {
-  if (!BACKGROUND_MUSIC_PLAYLIST.length) {
+  if (!BACKGROUND_MUSIC_PLAYLIST.length || backgroundMusicAudio) {
     return;
   }
 
   const audio = document.createElement("audio");
+  backgroundMusicAudio = audio;
   let playbackUnlocked = sessionStorage.getItem(BACKGROUND_MUSIC_UNLOCK_KEY) === "true";
   let trackIndex = Number(sessionStorage.getItem(BACKGROUND_MUSIC_TRACK_INDEX_KEY) || "0");
 
@@ -458,13 +733,13 @@ function syncSelectedSubmissionIds(items) {
 }
 
 function updateDeleteSelectedButton() {
-  if (!deleteSelectedBtn) {
+  if (!hideSelectedBtn) {
     return;
   }
 
   const selectedCount = selectedSubmissionIds.size;
-  deleteSelectedBtn.disabled = selectedCount === 0;
-  deleteSelectedBtn.textContent = selectedCount ? `Xóa ${selectedCount} thí sinh đã chọn` : "Xóa thí sinh đã chọn";
+  hideSelectedBtn.disabled = selectedCount === 0;
+  hideSelectedBtn.textContent = selectedCount ? `Ẩn ${selectedCount} thí sinh đã chọn` : "Ẩn thí sinh đã chọn";
 }
 
 function createExcelContent(submissions) {
@@ -544,15 +819,15 @@ async function updateSubmissionVisibility(id, hidden) {
   return data.item || null;
 }
 
-async function deleteSelectedSubmissions(ids) {
-  const data = await apiRequest("delete_selected_submissions", {
+async function hideSelectedSubmissions(ids) {
+  const data = await apiRequest("hide_selected_submissions", {
     method: "POST",
     body: JSON.stringify({
       ids: ids,
     }),
   });
 
-  return Array.isArray(data.deletedIds) ? data.deletedIds : [];
+  return Array.isArray(data.hiddenIds) ? data.hiddenIds : [];
 }
 
 async function renderSubmissionList() {
@@ -584,11 +859,7 @@ async function renderSubmissionList() {
   const visibleSubmissions = getVisibleSubmissions(submissions);
   const hiddenSubmissions = getHiddenSubmissions(submissions);
   const keyword = submissionSearchInput ? submissionSearchInput.value : "";
-  const matchedSubmissions = filterSubmissionsByName(submissions, keyword).sort(function (left, right) {
-    if (left.hidden !== right.hidden) {
-      return Number(left.hidden) - Number(right.hidden);
-    }
-
+  const matchedSubmissions = filterSubmissionsByName(visibleSubmissions, keyword).sort(function (left, right) {
     return new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime();
   });
   submissionCount.textContent = `${visibleSubmissions.length} hồ sơ đang hiển thị${hiddenSubmissions.length ? ` | ${hiddenSubmissions.length} hồ sơ đã ẩn` : ""}${keyword.trim() ? ` | ${matchedSubmissions.length} kết quả phù hợp` : ""}${selectedSubmissionIds.size ? ` | ${selectedSubmissionIds.size} hồ sơ đã chọn` : ""}`;
@@ -607,6 +878,12 @@ async function renderSubmissionList() {
     return;
   }
 
+  if (!visibleSubmissions.length) {
+    emptyState.hidden = false;
+    emptyState.textContent = "Toàn bộ hồ sơ hiện đang được ẩn. Bấm 'Hiện lại dữ liệu ẩn' để xem lại.";
+    return;
+  }
+
   if (!matchedSubmissions.length) {
     emptyState.hidden = false;
     emptyState.textContent = "Không tìm thấy hồ sơ nào khớp với tên bạn đang tìm.";
@@ -621,7 +898,7 @@ async function renderSubmissionList() {
     card.innerHTML = `
       <summary>
         <div class="data-card-head">
-          <label class="submission-select-control" aria-label="Chọn hồ sơ ${escapeHtml(item.fullName)} để xóa">
+          <label class="submission-select-control" aria-label="Chọn hồ sơ ${escapeHtml(item.fullName)} để ẩn">
             <input type="checkbox" class="submission-select-checkbox" data-submission-select-id="${item.id}" ${selectedSubmissionIds.has(Number(item.id)) ? "checked" : ""} />
             <span>Chọn</span>
           </label>
@@ -680,18 +957,21 @@ async function renderSubmissionList() {
   });
 }
 
-if (loginForm && loginMessage) {
-  loginForm.addEventListener("submit", async function (event) {
+document.addEventListener("submit", async function (event) {
+  const submittedLoginForm = event.target.closest("#loginForm");
+  const submittedRegistrationForm = event.target.closest("#registrationForm");
+
+  if (submittedLoginForm && loginMessage) {
     event.preventDefault();
     loginMessage.classList.remove("show", "error");
 
-    if (!loginForm.checkValidity()) {
-      loginForm.reportValidity();
+    if (!submittedLoginForm.checkValidity()) {
+      submittedLoginForm.reportValidity();
       return;
     }
 
-    const username = loginForm.username.value.trim();
-    const password = loginForm.password.value;
+    const username = submittedLoginForm.username.value.trim();
+    const password = submittedLoginForm.password.value;
 
     try {
       await apiRequest("admin_login", {
@@ -702,28 +982,28 @@ if (loginForm && loginMessage) {
         }),
       });
 
-      window.location.href = "admin.html";
+      await navigateToInternalPage("admin.html");
       return;
     } catch (error) {
       loginMessage.textContent = error.message || "Đăng nhập không thành công. Vui lòng thử lại.";
       loginMessage.classList.add("error", "show");
     }
-  });
-}
 
-if (registrationForm && successMessage) {
-  registrationForm.addEventListener("submit", async function (event) {
+    return;
+  }
+
+  if (submittedRegistrationForm && successMessage) {
     event.preventDefault();
 
-    if (!registrationForm.checkValidity()) {
-      registrationForm.reportValidity();
+    if (!submittedRegistrationForm.checkValidity()) {
+      submittedRegistrationForm.reportValidity();
       return;
     }
 
     successMessage.classList.remove("show", "error");
 
     try {
-      const payload = await collectFormData(registrationForm);
+      const payload = await collectFormData(submittedRegistrationForm);
 
       await apiRequest("create_submission", {
         method: "POST",
@@ -732,21 +1012,41 @@ if (registrationForm && successMessage) {
 
       successMessage.textContent = "Đăng ký thành công";
       successMessage.classList.add("show");
-      registrationForm.classList.add("submitted");
-      registrationForm.scrollIntoView({ behavior: "smooth", block: "center" });
+      submittedRegistrationForm.classList.add("submitted");
+      submittedRegistrationForm.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (error) {
-      registrationForm.classList.remove("submitted");
+      submittedRegistrationForm.classList.remove("submitted");
       successMessage.textContent =
         error.message || "Khong gui duoc du lieu len server. Vui long kiem tra Vercel, Supabase va route /api.";
       successMessage.classList.add("error", "show");
     }
-  });
-}
+  }
+});
 
 document.addEventListener("click", async function (event) {
+  const navigationLink = event.target.closest("a[href]");
   const logoutControl = event.target.closest('button[data-auth-action="logout"], #logoutButton');
   const visibilityControl = event.target.closest("button[data-submission-visibility-id]");
   const submissionSelectControl = event.target.closest(".submission-select-control");
+  const hideDataControl = event.target.closest("#hideDataBtn");
+  const restoreDataControl = event.target.closest("#restoreDataBtn");
+  const exportExcelControl = event.target.closest("#exportExcelBtn");
+  const hideSelectedControl = event.target.closest("#hideSelectedBtn");
+
+  if (
+    navigationLink &&
+    isInternalNavigationLink(navigationLink) &&
+    !event.defaultPrevented &&
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey
+  ) {
+    event.preventDefault();
+    await navigateToInternalPage(navigationLink.href);
+    return;
+  }
 
   if (submissionSelectControl) {
     const submissionSelectCheckbox = submissionSelectControl.querySelector("input[data-submission-select-id]");
@@ -785,57 +1085,7 @@ document.addEventListener("click", async function (event) {
     return;
   }
 
-  if (!logoutControl) {
-    return;
-  }
-
-  if (logoutControl.dataset.logoutPending === "true") {
-    return;
-  }
-
-  logoutControl.dataset.logoutPending = "true";
-
-  try {
-    await apiRequest("admin_logout", {
-      method: "POST",
-      body: JSON.stringify({}),
-    });
-  } catch (error) {
-    // Redirect anyway so the user is not stuck if the session is already gone.
-  }
-
-  window.location.href = "login.html";
-});
-
-document.addEventListener("change", function (event) {
-  const submissionSelectCheckbox = event.target.closest("input[data-submission-select-id]");
-
-  if (!submissionSelectCheckbox) {
-    return;
-  }
-
-  const submissionId = Number(submissionSelectCheckbox.dataset.submissionSelectId || "0");
-
-  if (!Number.isInteger(submissionId) || submissionId <= 0) {
-    submissionSelectCheckbox.checked = false;
-    return;
-  }
-
-  if (submissionSelectCheckbox.checked) {
-    selectedSubmissionIds.add(submissionId);
-  } else {
-    selectedSubmissionIds.delete(submissionId);
-  }
-
-  updateDeleteSelectedButton();
-
-  if (submissionCount && submissionList) {
-    renderSubmissionList();
-  }
-});
-
-if (hideDataBtn) {
-  hideDataBtn.addEventListener("click", async function () {
+  if (hideDataControl) {
     let submissions = [];
 
     try {
@@ -867,11 +1117,11 @@ if (hideDataBtn) {
       }
       window.alert("Khong an duoc du lieu tren server.");
     }
-  });
-}
 
-if (restoreDataBtn) {
-  restoreDataBtn.addEventListener("click", async function () {
+    return;
+  }
+
+  if (restoreDataControl) {
     try {
       await apiRequest("restore_all_submissions", {
         method: "POST",
@@ -885,11 +1135,11 @@ if (restoreDataBtn) {
       }
       window.alert("Khong hien lai du lieu tren server.");
     }
-  });
-}
 
-if (exportExcelBtn) {
-  exportExcelBtn.addEventListener("click", async function () {
+    return;
+  }
+
+  if (exportExcelControl) {
     let visibleSubmissions = [];
 
     try {
@@ -919,25 +1169,24 @@ if (exportExcelBtn) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  });
-}
+    return;
+  }
 
-if (deleteSelectedBtn) {
-  deleteSelectedBtn.addEventListener("click", async function () {
+  if (hideSelectedControl) {
     const ids = Array.from(selectedSubmissionIds);
 
     if (!ids.length) {
       return;
     }
 
-    if (!window.confirm(`Bạn có chắc muốn xóa ${ids.length} thí sinh đã chọn khỏi database không?`)) {
+    if (!window.confirm(`Bạn có chắc muốn ẩn ${ids.length} thí sinh đã chọn không?`)) {
       return;
     }
 
-    deleteSelectedBtn.disabled = true;
+    hideSelectedControl.disabled = true;
 
     try {
-      await deleteSelectedSubmissions(ids);
+      await hideSelectedSubmissions(ids);
       selectedSubmissionIds.clear();
       await renderSubmissionList();
     } catch (error) {
@@ -946,21 +1195,105 @@ if (deleteSelectedBtn) {
         return;
       }
 
-      window.alert("Khong xoa duoc cac ho so da chon.");
+      window.alert("Khong an duoc cac ho so da chon.");
       updateDeleteSelectedButton();
     }
-  });
-}
 
-if (submissionSearchInput) {
-  submissionSearchInput.addEventListener("input", function () {
+    return;
+  }
+
+  if (!logoutControl) {
+    return;
+  }
+
+  if (logoutControl.dataset.logoutPending === "true") {
+    return;
+  }
+
+  logoutControl.dataset.logoutPending = "true";
+
+  try {
+    await apiRequest("admin_logout", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  } catch (error) {
+    // Redirect anyway so the user is not stuck if the session is already gone.
+  }
+
+  await navigateToInternalPage("login.html");
+});
+
+document.addEventListener("change", function (event) {
+  const submissionSelectCheckbox = event.target.closest("input[data-submission-select-id]");
+  const changedPhotoInput = event.target.closest("#photoUpload");
+
+  if (changedPhotoInput) {
+    const nextFile = changedPhotoInput.files && changedPhotoInput.files[0] ? changedPhotoInput.files[0] : null;
+    updateImagePreviewFromFile(nextFile);
+    return;
+  }
+
+  if (!submissionSelectCheckbox) {
+    return;
+  }
+
+  const submissionId = Number(submissionSelectCheckbox.dataset.submissionSelectId || "0");
+
+  if (!Number.isInteger(submissionId) || submissionId <= 0) {
+    submissionSelectCheckbox.checked = false;
+    return;
+  }
+
+  if (submissionSelectCheckbox.checked) {
+    selectedSubmissionIds.add(submissionId);
+  } else {
+    selectedSubmissionIds.delete(submissionId);
+  }
+
+  updateDeleteSelectedButton();
+
+  if (submissionCount && submissionList) {
     renderSubmissionList();
+  }
+});
+
+document.addEventListener("input", function (event) {
+  if (event.target.closest("#submissionSearch")) {
+    renderSubmissionList();
+  }
+});
+
+document.addEventListener("click", function (event) {
+  if (!event.target.closest(".site-nav")) {
+    closeSiteNavMenus();
+  }
+
+  if (!event.target.closest(".toolbar")) {
+    closeToolbarMenus();
+  }
+});
+
+window.addEventListener("resize", function () {
+  if (!isMobileViewport()) {
+    closeSiteNavMenus();
+    closeToolbarMenus();
+  }
+});
+
+window.addEventListener("popstate", async function () {
+  await navigateToInternalPage(window.location.href, {
+    replaceState: true,
+    forceLoad: true,
   });
-}
+});
 
 async function initializePage() {
+  cacheDomElements();
   setupBackgroundMusic();
   setupRegistrationImagePreview();
+  setupNavigationMenus();
+  setupToolbarMenus();
   renderZaloFab();
   await renderNavigationAuth();
 

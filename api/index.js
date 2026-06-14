@@ -402,7 +402,7 @@ module.exports = async (req, res) => {
       return;
     }
 
-    if (method === "POST" && action === "delete_selected_submissions") {
+    if (method === "POST" && action === "hide_selected_submissions") {
       if (!requireAdminRequest(req, res)) {
         return;
       }
@@ -416,18 +416,21 @@ module.exports = async (req, res) => {
       if (!submissionIds.length) {
         sendJson(res, {
           ok: false,
-          message: "Chua chon ho so hop le de xoa.",
+          message: "Chua chon ho so hop le de an.",
         }, 422);
         return;
       }
 
       await supabaseRequest(`submissions?id=in.(${submissionIds.join(",")})`, {
-        method: "DELETE",
+        method: "PATCH",
+        body: {
+          hidden: true,
+        },
       });
 
       sendJson(res, {
         ok: true,
-        deletedIds: submissionIds,
+        hiddenIds: submissionIds,
       });
       return;
     }
