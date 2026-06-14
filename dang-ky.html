@@ -40,106 +40,136 @@
 
       <main>
         <section class="section-card">
-          <div class="registration-layout">
-            <article class="panel">
-              <h3>Trước khi điền form</h3>
-              <p>
-                Mùa 7 tiếp tục là sân chơi tri thức và trải nghiệm dành cho những bạn trẻ mong muốn tìm hiểu, kết nối và lan tỏa những giá trị tích cực về bình đẳng, hòa nhập và tôn trọng sự khác biệt.
-              </p>
-            </article>
-
+          <div class="registration-layout registration-layout-single">
             <div class="panel form-card">
               <form id="registrationForm" novalidate>
                 <div class="form-grid">
                   <div class="field">
-                    <label for="fullName">Họ và tên</label>
+                    <label for="fullName">1. Họ và tên của bạn?</label>
                     <input id="fullName" name="fullName" type="text" placeholder="Nhập họ và tên" required />
                   </div>
 
                   <div class="field">
-                    <label for="birthYear">Năm sinh</label>
-                    <input id="birthYear" name="birthYear" type="number" min="1995" max="2009" placeholder="Ví dụ: 2003" required />
+                    <label for="birthYear">2. Ngày tháng năm sinh của bạn?</label>
+                    <input id="birthYear" name="birthYear" type="text" placeholder="Ví dụ: 01/01/2003" required />
                   </div>
 
                   <div class="field">
-                    <label for="phone">Số điện thoại</label>
+                    <label for="city">3. Quê quán (tính trước khi sát nhập tỉnh thành)?</label>
+                    <input id="city" name="city" type="text" placeholder="Nhập quê quán của bạn" required />
+                  </div>
+
+                  <div class="field">
+                    <label for="occupation">4. Nơi ở, học tập, làm việc hiện tại của bạn có phải ở Cần Thơ hay không?</label>
+                    <input id="occupation" name="occupation" type="text" placeholder="Ví dụ: Có, hiện mình đang sống và học tập tại Cần Thơ" required />
+                  </div>
+
+                  <div class="field">
+                    <label for="identity">5. Bạn có thuộc cộng đồng LGBTIQ+ hay không?</label>
+                    <input id="identity" name="identity" type="text" placeholder="Chia sẻ ngắn gọn câu trả lời của bạn" required />
+                  </div>
+
+                  <div class="field">
+                    <label for="phone">6. Số điện thoại của bạn?</label>
                     <input id="phone" name="phone" type="tel" placeholder="Nhập số điện thoại" required />
                   </div>
 
                   <div class="field">
-                    <label for="email">Email</label>
-                    <input id="email" name="email" type="email" placeholder="Nhập địa chỉ email" required />
-                  </div>
-
-                  <div class="field">
-                    <label for="city">Tỉnh / Thành phố</label>
-                    <input id="city" name="city" type="text" placeholder="Bạn đang sinh sống tại đâu?" required />
-                  </div>
-
-                  <div class="field">
-                    <label for="occupation">Trường học / Công việc hiện tại</label>
-                    <input id="occupation" name="occupation" type="text" placeholder="Nhập trường học hoặc công việc hiện tại" required />
+                    <label for="email">7. Zalo của bạn?</label>
+                    <input id="email" name="email" type="text" placeholder="Nhập số điện thoại Zalo" required />
                   </div>
 
                   <div class="field full">
-                    <label for="photoUpload">Tải ảnh của bạn</label>
-                    <input id="photoUpload" name="photo" type="file" accept="image/*" />
-                    <p class="field-help">
-                      Hỗ trợ ảnh JPG, PNG, WEBP. Nên chọn ảnh rõ mặt, dung lượng dưới 10MB.
-                    </p>
+                    <label for="motivation">8. Bạn có thuộc tổ chức cộng đồng/Doanh nghiệp xã hội nào không?</label>
+                    <textarea class="long-answer" id="motivation" name="motivation" placeholder="Nếu có, hãy chia sẻ tên tổ chức/doanh nghiệp xã hội. Nếu không, bạn có thể ghi không." rows="2" required></textarea>
+                  </div>
+
+                  <div class="field full">
+                    <label for="story">9. Điều gì đã khiến bạn quyết định đăng ký tham gia cuộc thi năm nay?</label>
+                    <textarea class="long-answer" id="story" name="story" placeholder="Chia sẻ lý do thôi thúc bạn đăng ký tham gia" rows="2" required></textarea>
+                  </div>
+
+                  <div class="field full">
+                    <label for="strength">10. Bạn có thể chia sẻ mục tiêu của bạn khi đến với cuộc thi này là gì?</label>
+                    <textarea class="long-answer" id="strength" name="strength" placeholder="Chia sẻ mục tiêu bạn muốn đạt được khi tham gia cuộc thi" rows="2" required></textarea>
+                  </div>
+
+                  <div class="field full">
+                    <label>11. Bạn đánh giá thế nào về 4 kỹ năng: Giao tiếp, Làm việc nhóm, Thuyết trình, Quản lý thời gian của bản thân?</label>
+                    <div class="skill-rating-list">
+                      <div class="skill-rating-item">
+                        <strong>Giao tiếp</strong>
+                        <div class="star-choice-group" role="group" aria-label="Đánh giá kỹ năng giao tiếp">
+                          <label class="star-choice-item"><input type="radio" name="communicationRating" value="1 sao" required /> <span class="star-display" aria-label="1 sao">★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="communicationRating" value="2 sao" required /> <span class="star-display" aria-label="2 sao">★★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="communicationRating" value="3 sao" required /> <span class="star-display" aria-label="3 sao">★★★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="communicationRating" value="4 sao" required /> <span class="star-display" aria-label="4 sao">★★★★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="communicationRating" value="5 sao" required /> <span class="star-display" aria-label="5 sao">★★★★★</span></label>
+                        </div>
+                        <textarea name="communicationNote" placeholder="Giải thích ngắn gọn về kỹ năng giao tiếp của bạn" rows="2" required></textarea>
+                      </div>
+
+                      <div class="skill-rating-item">
+                        <strong>Làm việc nhóm</strong>
+                        <div class="star-choice-group" role="group" aria-label="Đánh giá kỹ năng làm việc nhóm">
+                          <label class="star-choice-item"><input type="radio" name="teamworkRating" value="1 sao" required /> <span class="star-display" aria-label="1 sao">★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="teamworkRating" value="2 sao" required /> <span class="star-display" aria-label="2 sao">★★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="teamworkRating" value="3 sao" required /> <span class="star-display" aria-label="3 sao">★★★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="teamworkRating" value="4 sao" required /> <span class="star-display" aria-label="4 sao">★★★★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="teamworkRating" value="5 sao" required /> <span class="star-display" aria-label="5 sao">★★★★★</span></label>
+                        </div>
+                        <textarea name="teamworkNote" placeholder="Giải thích ngắn gọn về kỹ năng làm việc nhóm của bạn" rows="2" required></textarea>
+                      </div>
+
+                      <div class="skill-rating-item">
+                        <strong>Thuyết trình</strong>
+                        <div class="star-choice-group" role="group" aria-label="Đánh giá kỹ năng thuyết trình">
+                          <label class="star-choice-item"><input type="radio" name="presentationRating" value="1 sao" required /> <span class="star-display" aria-label="1 sao">★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="presentationRating" value="2 sao" required /> <span class="star-display" aria-label="2 sao">★★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="presentationRating" value="3 sao" required /> <span class="star-display" aria-label="3 sao">★★★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="presentationRating" value="4 sao" required /> <span class="star-display" aria-label="4 sao">★★★★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="presentationRating" value="5 sao" required /> <span class="star-display" aria-label="5 sao">★★★★★</span></label>
+                        </div>
+                        <textarea name="presentationNote" placeholder="Giải thích ngắn gọn về kỹ năng thuyết trình của bạn" rows="2" required></textarea>
+                      </div>
+
+                      <div class="skill-rating-item">
+                        <strong>Quản lý thời gian</strong>
+                        <div class="star-choice-group" role="group" aria-label="Đánh giá kỹ năng quản lý thời gian">
+                          <label class="star-choice-item"><input type="radio" name="timeManagementRating" value="1 sao" required /> <span class="star-display" aria-label="1 sao">★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="timeManagementRating" value="2 sao" required /> <span class="star-display" aria-label="2 sao">★★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="timeManagementRating" value="3 sao" required /> <span class="star-display" aria-label="3 sao">★★★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="timeManagementRating" value="4 sao" required /> <span class="star-display" aria-label="4 sao">★★★★</span></label>
+                          <label class="star-choice-item"><input type="radio" name="timeManagementRating" value="5 sao" required /> <span class="star-display" aria-label="5 sao">★★★★★</span></label>
+                        </div>
+                        <textarea name="timeManagementNote" placeholder="Giải thích ngắn gọn về kỹ năng quản lý thời gian của bạn" rows="2" required></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="field full">
+                    <label for="availability">12. Nếu được ví như một mảnh ghép trong chiếc kính vạn hoa, bạn nghĩ mình mang đến màu sắc hoặc giá trị gì cho cộng đồng?</label>
+                    <textarea class="long-answer" id="availability" name="availability" placeholder="Chia sẻ màu sắc, giá trị hoặc vai trò mà bạn muốn mang đến" rows="2" required></textarea>
+                  </div>
+
+                  <div class="field full">
+                    <label for="question13">13. Trong xã hội hiện nay, đâu là những &quot;góc khuất&quot; của cộng đồng LGBTIQ+ mà bạn nghĩ cần được nhìn thấy rõ hơn?</label>
+                    <textarea class="long-answer" id="question13" name="question13" placeholder="Chia sẻ quan điểm của bạn" rows="2" required></textarea>
+                  </div>
+
+                  <div class="field full">
+                    <label for="question14">14. Theo bạn, sự khác biệt là điều cần được chấp nhận hay được tôn vinh? Hãy giải thích quan điểm của mình.</label>
+                    <textarea class="long-answer" id="question14" name="question14" placeholder="Trình bày quan điểm của bạn" rows="2" required></textarea>
+                  </div>
+
+                  <div class="field full">
+                    <label for="photoUpload">15. Hãy gửi lên biểu mẫu này ít nhất 2 tấm ảnh chân dung của bạn (Ảnh rõ mặt, chính diện).</label>
+                    <input id="photoUpload" name="photo" type="file" accept="image/*" multiple required />
                     <div class="image-preview" id="imagePreview" hidden>
-                      <img id="imagePreviewTag" alt="Xem trước ảnh đăng ký" />
+                      <div class="image-preview-grid" id="imagePreviewGrid"></div>
                     </div>
-                  </div>
-
-                  <div class="field full">
-                    <label for="identity">Bạn muốn giới thiệu gì về bản thân?</label>
-                    <textarea id="identity" name="identity" placeholder="Chia sẻ ngắn gọn về bản thân, hành trình hoặc màu sắc riêng của bạn"></textarea>
-                  </div>
-
-                  <div class="field full">
-                    <label for="motivation">Điều gì khiến bạn muốn tham gia Đường Lên Đỉnh Sogielia Mùa 7?</label>
-                    <textarea id="motivation" name="motivation" placeholder="Chia sẻ động lực tham gia của bạn" required></textarea>
-                  </div>
-
-                  <div class="field full">
-                    <label for="story">Bạn nhìn thấy điều gì từ chủ đề "Kính Vạn Hoa - Càng Xoay Càng Rõ"?</label>
-                    <textarea id="story" name="story" placeholder="Chia sẻ góc nhìn hoặc câu chuyện mà bạn muốn khám phá" required></textarea>
-                  </div>
-
-                  <div class="field full">
-                    <label for="strength">Ba điểm mạnh mà bạn muốn mang đến hành trình này là gì?</label>
-                    <textarea id="strength" name="strength" placeholder="Ví dụ: tư duy phản biện, làm việc nhóm, kết nối cộng đồng" required></textarea>
-                  </div>
-
-                  <div class="field full">
-                    <label>Bạn mong muốn nhận được điều gì nhiều nhất khi tham gia?</label>
-                    <div class="choice-group">
-                      <label class="choice-item"><input type="checkbox" name="expectation" value="Kiến thức chuyên sâu" /> Kiến thức chuyên sâu hơn về đa dạng giới và cộng đồng LGBTIQ+</label>
-                      <label class="choice-item"><input type="checkbox" name="expectation" value="Kết nối với mentor và thí sinh" /> Cơ hội kết nối với mentor, thí sinh và những người trẻ cùng chí hướng</label>
-                      <label class="choice-item"><input type="checkbox" name="expectation" value="Phát triển bản thân" /> Môi trường để phát triển bản thân và vượt qua giới hạn</label>
-                      <label class="choice-item"><input type="checkbox" name="expectation" value="Lan tỏa giá trị tích cực" /> Cơ hội lan tỏa những giá trị tích cực đến cộng đồng</label>
-                    </div>
-                  </div>
-
-                  <div class="field full">
-                    <label>Bạn có thể tham gia đầy đủ các mốc thời gian quan trọng của cuộc thi không?</label>
-                    <div class="choice-group">
-                      <label class="choice-item"><input type="radio" name="availability" value="Có thể tham gia đầy đủ" required /> Có, mình có thể sắp xếp để tham gia đầy đủ các hoạt động.</label>
-                      <label class="choice-item"><input type="radio" name="availability" value="Cần trao đổi thêm" required /> Mình cần trao đổi thêm với BTC về một vài mốc thời gian.</label>
-                    </div>
-                  </div>
-
-                  <div class="field full">
-                    <label class="choice-item">
-                      <input id="consent" name="consent" type="checkbox" required />
-                      Mình xác nhận các thông tin đã điền là chính xác và đồng ý để BTC liên hệ phục vụ cho quá trình tổ chức cuộc thi.
-                    </label>
                   </div>
                 </div>
-
-                <p class="helper-text">
-                </p>
 
                 <div class="submit-row">
                   <button class="button button-primary" type="submit">Gửi đăng ký</button>

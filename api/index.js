@@ -76,6 +76,33 @@ function requireAdminRequest(req, res) {
   return true;
 }
 
+function parseStoredArray(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+  }
+
+  const rawValue = String(value || "").trim();
+
+  if (!rawValue) {
+    return [];
+  }
+
+  try {
+    const parsedValue = JSON.parse(rawValue);
+    if (Array.isArray(parsedValue)) {
+      return parsedValue
+        .map((item) => String(item || "").trim())
+        .filter(Boolean);
+    }
+  } catch (error) {
+    // Keep backward compatibility with older single-string values.
+  }
+
+  return [rawValue];
+}
+
 function normalizeSubmission(row) {
   let expectation = [];
 
@@ -84,6 +111,9 @@ function normalizeSubmission(row) {
   } catch (error) {
     expectation = [];
   }
+
+  const photoDataUrls = parseStoredArray(row.photo_data_url || "");
+  const photoFileNames = parseStoredArray(row.photo_file_name || "");
 
   return {
     id: Number(row.id || 0),
@@ -101,8 +131,10 @@ function normalizeSubmission(row) {
     expectation: Array.isArray(expectation) ? expectation : [],
     availability: row.availability || "",
     consent: Boolean(row.consent),
-    photoDataUrl: row.photo_data_url || "",
-    photoFileName: row.photo_file_name || "",
+    photoDataUrl: photoDataUrls[0] || "",
+    photoDataUrls: photoDataUrls,
+    photoFileName: photoFileNames[0] || "",
+    photoFileNames: photoFileNames,
     submittedAt: row.submitted_at || "",
   };
 }

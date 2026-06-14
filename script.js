@@ -24,7 +24,7 @@ let deleteSelectedBtn;
 let submissionSearchInput;
 let photoUploadInput;
 let imagePreview;
-let imagePreviewTag;
+let imagePreviewGrid;
 let backgroundMusicAudio = null;
 
 function cacheDomElements() {
@@ -43,7 +43,7 @@ function cacheDomElements() {
   submissionSearchInput = document.getElementById("submissionSearch");
   photoUploadInput = document.getElementById("photoUpload");
   imagePreview = document.getElementById("imagePreview");
-  imagePreviewTag = document.getElementById("imagePreviewTag");
+  imagePreviewGrid = document.getElementById("imagePreviewGrid");
 }
 
 function isCurrentPage(pageName) {
@@ -419,22 +419,46 @@ function readFileAsDataUrl(file) {
 
 async function collectFormData(form) {
   const formData = new FormData(form);
-  const photoFile = formData.get("photo");
-  let photoDataUrl = "";
-  let photoFileName = "";
+  const skillReview = [
+    `Giao tiếp: ${formData.get("communicationRating") || ""}. ${formData.get("communicationNote") || ""}`.trim(),
+    `Làm việc nhóm: ${formData.get("teamworkRating") || ""}. ${formData.get("teamworkNote") || ""}`.trim(),
+    `Thuyết trình: ${formData.get("presentationRating") || ""}. ${formData.get("presentationNote") || ""}`.trim(),
+    `Quản lý thời gian: ${formData.get("timeManagementRating") || ""}. ${formData.get("timeManagementNote") || ""}`.trim(),
+  ].join("\n");
+  const photoFiles = formData
+    .getAll("photo")
+    .filter(function (file) {
+      return file instanceof File && file.size > 0;
+    });
 
-  if (photoFile instanceof File && photoFile.size > 0) {
-    if (!photoFile.type.startsWith("image/")) {
-      throw new Error("Chi duoc tai len file anh.");
-    }
-
-    if (photoFile.size > MAX_UPLOAD_IMAGE_SIZE) {
-      throw new Error("Anh tai len vuot qua 10MB. Vui long chon anh nho hon.");
-    }
-
-    photoDataUrl = await readFileAsDataUrl(photoFile);
-    photoFileName = photoFile.name || "";
+  if (photoFiles.length < 2) {
+    throw new Error("Vui lòng tải lên ít nhất 2 ảnh chân dung rõ mặt.");
   }
+
+  const invalidPhotoFile = photoFiles.find(function (file) {
+    return !file.type.startsWith("image/");
+  });
+
+  if (invalidPhotoFile) {
+    throw new Error("Chi duoc tai len file anh.");
+  }
+
+  const oversizedPhotoFile = photoFiles.find(function (file) {
+    return file.size > MAX_UPLOAD_IMAGE_SIZE;
+  });
+
+  if (oversizedPhotoFile) {
+    throw new Error("Co anh tai len vuot qua 10MB. Vui long chon anh nho hon.");
+  }
+
+  const photoDataUrls = await Promise.all(
+    photoFiles.map(function (file) {
+      return readFileAsDataUrl(file);
+    })
+  );
+  const photoFileNames = photoFiles.map(function (file) {
+    return file.name || "";
+  });
 
   return {
     id: Date.now(),
@@ -449,11 +473,15 @@ async function collectFormData(form) {
     motivation: formData.get("motivation") || "",
     story: formData.get("story") || "",
     strength: formData.get("strength") || "",
-    expectation: formData.getAll("expectation"),
+    expectation: [
+      skillReview,
+      formData.get("question13") || "",
+      formData.get("question14") || "",
+    ],
     availability: formData.get("availability") || "",
-    consent: Boolean(formData.get("consent")),
-    photoDataUrl: photoDataUrl,
-    photoFileName: photoFileName,
+    consent: true,
+    photoDataUrl: JSON.stringify(photoDataUrls),
+    photoFileName: JSON.stringify(photoFileNames),
     submittedAt: new Date().toISOString(),
   };
 }
@@ -517,23 +545,82 @@ function formatDateTime(isoString) {
   return new Date(isoString).toLocaleString("vi-VN");
 }
 
-function updateImagePreviewFromFile(file) {
-  if (!imagePreview || !imagePreviewTag) {
-    return;
+function parseStoredArray(value) {
+  if (Array.isArray(value)) {
+    return value.filter(function (item) {
+      return typeof item === "string" && item.trim() !== "";
+    });
   }
 
-  if (!(file instanceof File) || file.size === 0) {
-    imagePreview.hidden = true;
-    imagePreviewTag.removeAttribute("src");
-    return;
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
   }
 
-  const objectUrl = URL.createObjectURL(file);
-  imagePreviewTag.src = objectUrl;
-  imagePreview.hidden = false;
-  imagePreviewTag.onload = function () {
-    URL.revokeObjectURL(objectUrl);
+  try {
+    const parsedValue = JSON.parse(value);
+    if (Array.isArray(parsedValue)) {
+      return parsedValue.filter(function (item) {
+        return typeof item === "string" && item.trim() !== "";
+      });
+    }
+  } catch (error) {
+    // Fall back to treating the value as a single stored string.
+  }
+
+  return [value];
+}
+
+function getSubmissionPhotoDataUrls(item) {
+  if (Array.isArray(item.photoDataUrls)) {
+    return item.photoDataUrls.filter(function (value) {
+      return typeof value === "string" && value.trim() !== "";
+    });
+  }
+
+  return parseStoredArray(item.photoDataUrl);
+}
+
+function getSubmissionExtendedAnswers(item) {
+  const extraAnswers = Array.isArray(item.expectation) ? item.expectation : [];
+
+  return {
+    skillReview: extraAnswers[0] || "",
+    hiddenAngles: extraAnswers[1] || "",
+    differenceView: extraAnswers[2] || "",
   };
+}
+
+function updateImagePreviewFromFiles(files) {
+  if (!imagePreview || !imagePreviewGrid) {
+    return;
+  }
+
+  const validFiles = Array.isArray(files)
+    ? files.filter(function (file) {
+        return file instanceof File && file.size > 0;
+      })
+    : [];
+
+  if (!validFiles.length) {
+    imagePreview.hidden = true;
+    imagePreviewGrid.innerHTML = "";
+    return;
+  }
+
+  imagePreviewGrid.innerHTML = "";
+
+  validFiles.forEach(function (file) {
+    const objectUrl = URL.createObjectURL(file);
+    const previewImage = document.createElement("img");
+    previewImage.src = objectUrl;
+    previewImage.alt = `Xem trước ảnh ${file.name || "đăng ký"}`;
+    previewImage.onload = function () {
+      URL.revokeObjectURL(objectUrl);
+    };
+    imagePreviewGrid.appendChild(previewImage);
+  });
+
+  imagePreview.hidden = false;
 }
 
 function setupRegistrationImagePreview() {
@@ -544,8 +631,8 @@ function setupRegistrationImagePreview() {
   photoUploadInput.dataset.previewBound = "true";
 
   photoUploadInput.addEventListener("change", function () {
-    const nextFile = photoUploadInput.files && photoUploadInput.files[0] ? photoUploadInput.files[0] : null;
-    updateImagePreviewFromFile(nextFile);
+    const nextFiles = photoUploadInput.files ? Array.from(photoUploadInput.files) : [];
+    updateImagePreviewFromFiles(nextFiles);
   });
 }
 
@@ -709,22 +796,27 @@ function updateSelectedActionButtons() {
 function createExcelContent(submissions) {
   const rows = submissions
     .map(function (item) {
+      const extendedAnswers = getSubmissionExtendedAnswers(item);
+      const photoDataUrls = getSubmissionPhotoDataUrls(item);
+
       return `
         <tr>
           <td>${escapeHtml(formatDateTime(item.submittedAt))}</td>
           <td>${escapeHtml(item.fullName)}</td>
           <td>${escapeHtml(item.birthYear)}</td>
-          <td>${escapeHtml(item.phone)}</td>
-          <td>${escapeHtml(item.email)}</td>
           <td>${escapeHtml(item.city)}</td>
           <td>${escapeHtml(item.occupation)}</td>
           <td>${escapeHtml(item.identity || "")}</td>
+          <td>${escapeHtml(item.phone)}</td>
+          <td>${escapeHtml(item.email)}</td>
           <td>${escapeHtml(item.motivation)}</td>
           <td>${escapeHtml(item.story)}</td>
           <td>${escapeHtml(item.strength)}</td>
-          <td>${escapeHtml(item.expectation.length ? item.expectation.join(", ") : "")}</td>
+          <td>${escapeHtml(extendedAnswers.skillReview || "")}</td>
           <td>${escapeHtml(item.availability || "")}</td>
-          <td>${item.photoDataUrl ? "Có ảnh" : "Không"}</td>
+          <td>${escapeHtml(extendedAnswers.hiddenAngles || "")}</td>
+          <td>${escapeHtml(extendedAnswers.differenceView || "")}</td>
+          <td>${photoDataUrls.length ? `${photoDataUrls.length} ảnh` : "Không"}</td>
         </tr>
       `;
     })
@@ -743,18 +835,20 @@ function createExcelContent(submissions) {
             <tr>
               <th>Thời gian gửi</th>
               <th>Họ và tên</th>
-              <th>Năm sinh</th>
+              <th>Ngày sinh</th>
+              <th>Quê quán</th>
+              <th>Nơi ở/học tập/làm việc tại Cần Thơ</th>
+              <th>Thuộc cộng đồng LGBTIQ+</th>
               <th>Số điện thoại</th>
-              <th>Email</th>
-              <th>Tỉnh / Thành phố</th>
-              <th>Trường học / Công việc</th>
-              <th>Giới thiệu bản thân</th>
-              <th>Động lực tham gia</th>
-              <th>Góc nhìn về chủ đề</th>
-              <th>Điểm mạnh</th>
-              <th>Mong muốn nhận được</th>
-              <th>Khả năng tham gia</th>
-              <th>Ảnh đính kèm</th>
+              <th>Zalo</th>
+              <th>Tổ chức cộng đồng/Doanh nghiệp xã hội</th>
+              <th>Lý do đăng ký</th>
+              <th>Mục tiêu tại cuộc thi</th>
+              <th>Đánh giá 4 kỹ năng</th>
+              <th>Mảnh ghép kính vạn hoa</th>
+              <th>Góc khuất cần được nhìn thấy</th>
+              <th>Quan điểm về sự khác biệt</th>
+              <th>Ảnh chân dung</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -868,6 +962,16 @@ async function renderSubmissionList() {
   emptyState.hidden = true;
 
   matchedSubmissions.forEach(function (item) {
+    const extendedAnswers = getSubmissionExtendedAnswers(item);
+    const photoDataUrls = getSubmissionPhotoDataUrls(item);
+    const photoGalleryMarkup = photoDataUrls.length
+      ? photoDataUrls
+          .map(function (photoUrl, index) {
+            return `<img class="submission-image" src="${escapeHtml(photoUrl)}" alt="Ảnh ${index + 1} của ${escapeHtml(item.fullName)}" />`;
+          })
+          .join("")
+      : "";
+
     const card = document.createElement("details");
     card.className = `data-card${item.hidden ? " is-hidden-card" : ""}`;
     card.innerHTML = `
@@ -879,7 +983,7 @@ async function renderSubmissionList() {
           </label>
           <div>
             <h3>${escapeHtml(item.fullName)}</h3>
-            <p>${escapeHtml(item.email)} | ${escapeHtml(item.phone)}</p>
+            <p>Zalo: ${escapeHtml(item.email)} | SĐT: ${escapeHtml(item.phone)}</p>
           </div>
           <div class="data-card-meta">
             <span class="status-pill${item.hidden ? " is-hidden" : ""}">${item.hidden ? "Đã ẩn" : "Đang hiện"}</span>
@@ -889,36 +993,44 @@ async function renderSubmissionList() {
       </summary>
       <div class="data-card-body">
         <div class="data-grid">
-          <div><strong>Năm sinh</strong><span>${escapeHtml(item.birthYear)}</span></div>
-          <div><strong>Tỉnh / Thành phố</strong><span>${escapeHtml(item.city)}</span></div>
-          <div><strong>Trường học / Công việc</strong><span>${escapeHtml(item.occupation)}</span></div>
-          <div><strong>Khả năng tham gia</strong><span>${escapeHtml(item.availability || "Chưa có")}</span></div>
+          <div><strong>Ngày tháng năm sinh</strong><span>${escapeHtml(item.birthYear)}</span></div>
+          <div><strong>Quê quán</strong><span>${escapeHtml(item.city)}</span></div>
+          <div><strong>Ở/học tập/làm việc tại Cần Thơ</strong><span>${escapeHtml(item.occupation)}</span></div>
+          <div><strong>Thuộc cộng đồng LGBTIQ+</strong><span>${escapeHtml(item.identity || "Không cung cấp")}</span></div>
         </div>
         <div class="data-block">
-          <strong>Giới thiệu bản thân</strong>
-          <p>${escapeHtml(item.identity || "Không cung cấp")}</p>
+          <strong>Thuộc tổ chức cộng đồng/Doanh nghiệp xã hội</strong>
+          <p>${escapeHtml(item.motivation || "Không cung cấp")}</p>
         </div>
         <div class="data-block">
-          <strong>Động lực tham gia</strong>
-          <p>${escapeHtml(item.motivation)}</p>
-        </div>
-        <div class="data-block">
-          <strong>Góc nhìn về chủ đề</strong>
+          <strong>Lý do đăng ký tham gia cuộc thi năm nay</strong>
           <p>${escapeHtml(item.story)}</p>
         </div>
         <div class="data-block">
-          <strong>Điểm mạnh</strong>
+          <strong>Mục tiêu khi đến với cuộc thi</strong>
           <p>${escapeHtml(item.strength)}</p>
         </div>
         <div class="data-block">
-          <strong>Mong muốn nhận được</strong>
-          <p>${escapeHtml(item.expectation.length ? item.expectation.join(", ") : "Không chọn")}</p>
+          <strong>Đánh giá 4 kỹ năng</strong>
+          <p>${escapeHtml(extendedAnswers.skillReview || "Không cung cấp")}</p>
         </div>
-        ${item.photoDataUrl ? `
         <div class="data-block">
-          <strong>Ảnh đã tải lên</strong>
-          <div class="submission-image-wrap">
-            <img class="submission-image" src="${escapeHtml(item.photoDataUrl)}" alt="Ảnh của ${escapeHtml(item.fullName)}" />
+          <strong>Mảnh ghép kính vạn hoa bạn mang đến</strong>
+          <p>${escapeHtml(item.availability || "Không cung cấp")}</p>
+        </div>
+        <div class="data-block">
+          <strong>Những "góc khuất" cần được nhìn thấy rõ hơn</strong>
+          <p>${escapeHtml(extendedAnswers.hiddenAngles || "Không cung cấp")}</p>
+        </div>
+        <div class="data-block">
+          <strong>Quan điểm về sự khác biệt</strong>
+          <p>${escapeHtml(extendedAnswers.differenceView || "Không cung cấp")}</p>
+        </div>
+        ${photoGalleryMarkup ? `
+        <div class="data-block">
+          <strong>Ảnh chân dung đã tải lên</strong>
+          <div class="submission-image-wrap submission-image-grid">
+            ${photoGalleryMarkup}
           </div>
         </div>` : ""}
         <div class="data-card-actions print-hidden">
@@ -988,6 +1100,8 @@ document.addEventListener("submit", async function (event) {
       successMessage.textContent = "Đăng ký thành công";
       successMessage.classList.add("show");
       submittedRegistrationForm.classList.add("submitted");
+      submittedRegistrationForm.reset();
+      updateImagePreviewFromFiles([]);
       submittedRegistrationForm.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (error) {
       submittedRegistrationForm.classList.remove("submitted");
@@ -1235,8 +1349,8 @@ document.addEventListener("change", function (event) {
   const changedPhotoInput = event.target.closest("#photoUpload");
 
   if (changedPhotoInput) {
-    const nextFile = changedPhotoInput.files && changedPhotoInput.files[0] ? changedPhotoInput.files[0] : null;
-    updateImagePreviewFromFile(nextFile);
+    const nextFiles = changedPhotoInput.files ? Array.from(changedPhotoInput.files) : [];
+    updateImagePreviewFromFiles(nextFiles);
     return;
   }
 
