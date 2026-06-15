@@ -15,8 +15,6 @@ create table if not exists public.submissions (
   truth_confirmation boolean not null default false,
   media_consent boolean not null default false,
   consent boolean not null default false,
-  photo_data_url text not null default '[]',
-  photo_file_name text not null default '[]',
   hidden boolean not null default false,
   submitted_at text not null default ''
 );
@@ -36,10 +34,10 @@ alter table public.submissions add column if not exists availability text;
 alter table public.submissions add column if not exists truth_confirmation boolean;
 alter table public.submissions add column if not exists media_consent boolean;
 alter table public.submissions add column if not exists consent boolean;
-alter table public.submissions add column if not exists photo_data_url text;
-alter table public.submissions add column if not exists photo_file_name text;
 alter table public.submissions add column if not exists hidden boolean;
 alter table public.submissions add column if not exists submitted_at text;
+alter table public.submissions drop column if exists photo_data_url;
+alter table public.submissions drop column if exists photo_file_name;
 
 update public.submissions
 set
@@ -61,16 +59,6 @@ set
   truth_confirmation = coalesce(truth_confirmation, consent, false),
   media_consent = coalesce(media_consent, consent, false),
   consent = coalesce(consent, false),
-  photo_data_url = case
-    when photo_data_url is null or btrim(photo_data_url) = '' then '[]'
-    when btrim(photo_data_url) like '[%' then photo_data_url
-    else to_json(array[photo_data_url])::text
-  end,
-  photo_file_name = case
-    when photo_file_name is null or btrim(photo_file_name) = '' then '[]'
-    when btrim(photo_file_name) like '[%' then photo_file_name
-    else to_json(array[photo_file_name])::text
-  end,
   hidden = coalesce(hidden, false),
   submitted_at = case
     when submitted_at is null or btrim(submitted_at) = '' then replace((now() at time zone 'utc')::text, ' ', 'T') || 'Z'
@@ -93,10 +81,6 @@ where
   or truth_confirmation is null
   or media_consent is null
   or consent is null
-  or photo_data_url is null
-  or btrim(photo_data_url) = ''
-  or photo_file_name is null
-  or btrim(photo_file_name) = ''
   or hidden is null
   or submitted_at is null
   or btrim(submitted_at) = '';
@@ -116,8 +100,6 @@ alter table public.submissions alter column availability set default '';
 alter table public.submissions alter column truth_confirmation set default false;
 alter table public.submissions alter column media_consent set default false;
 alter table public.submissions alter column consent set default false;
-alter table public.submissions alter column photo_data_url set default '[]';
-alter table public.submissions alter column photo_file_name set default '[]';
 alter table public.submissions alter column hidden set default false;
 alter table public.submissions alter column submitted_at set default '';
 
@@ -136,8 +118,6 @@ alter table public.submissions alter column availability set not null;
 alter table public.submissions alter column truth_confirmation set not null;
 alter table public.submissions alter column media_consent set not null;
 alter table public.submissions alter column consent set not null;
-alter table public.submissions alter column photo_data_url set not null;
-alter table public.submissions alter column photo_file_name set not null;
 alter table public.submissions alter column hidden set not null;
 alter table public.submissions alter column submitted_at set not null;
 
@@ -146,5 +126,3 @@ create index if not exists submissions_submitted_at_idx on public.submissions(su
 create index if not exists submissions_full_name_idx on public.submissions(full_name);
 
 comment on column public.submissions.expectation_json is 'JSON array stored as text for multi-part expectation answers.';
-comment on column public.submissions.photo_data_url is 'JSON array stored as text containing uploaded image data URLs.';
-comment on column public.submissions.photo_file_name is 'JSON array stored as text containing original uploaded image file names.';

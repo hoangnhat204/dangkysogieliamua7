@@ -103,8 +103,7 @@ function parseStoredArray(value) {
   return [rawValue];
 }
 
-function normalizeSubmission(row, options = {}) {
-  const includePhotos = options.includePhotos !== false;
+function normalizeSubmission(row) {
   let expectation = [];
 
   try {
@@ -112,10 +111,6 @@ function normalizeSubmission(row, options = {}) {
   } catch (error) {
     expectation = [];
   }
-
-  const photoFileNames = parseStoredArray(row.photo_file_name || "");
-  const photoDataUrls = includePhotos ? parseStoredArray(row.photo_data_url || "") : [];
-  const photoCount = photoFileNames.length || photoDataUrls.length;
 
   return {
     id: Number(row.id || 0),
@@ -135,11 +130,6 @@ function normalizeSubmission(row, options = {}) {
     truthConfirmation: Boolean(row.truth_confirmation),
     mediaConsent: Boolean(row.media_consent),
     consent: Boolean(row.consent),
-    photoCount: photoCount,
-    photoDataUrl: includePhotos ? photoDataUrls[0] || "" : "",
-    photoDataUrls: photoDataUrls,
-    photoFileName: photoFileNames[0] || "",
-    photoFileNames: photoFileNames,
     submittedAt: row.submitted_at || "",
   };
 }
@@ -317,47 +307,11 @@ module.exports = async (req, res) => {
       }
 
       const rows = await supabaseRequest(
-        "submissions?select=id,hidden,full_name,birth_year,phone,email,city,occupation,identity_text,motivation,story,strength,expectation_json,availability,truth_confirmation,media_consent,consent,photo_file_name,submitted_at&order=id.desc"
+        "submissions?select=id,hidden,full_name,birth_year,phone,email,city,occupation,identity_text,motivation,story,strength,expectation_json,availability,truth_confirmation,media_consent,consent,submitted_at&order=id.desc"
       );
       sendJson(res, {
         ok: true,
-        items: Array.isArray(rows) ? rows.map((row) => normalizeSubmission(row, { includePhotos: false })) : [],
-      });
-      return;
-    }
-
-    if (method === "POST" && action === "get_submission_detail") {
-      if (!requireAdminRequest(req, res)) {
-        return;
-      }
-
-      const body = await readRequestBody(req);
-      const submissionId = Number(body.id);
-
-      if (!Number.isInteger(submissionId) || submissionId <= 0) {
-        sendJson(res, {
-          ok: false,
-          message: "ID ho so khong hop le.",
-        }, 422);
-        return;
-      }
-
-      const rows = await supabaseRequest(
-        `submissions?select=id,photo_data_url,photo_file_name&id=eq.${submissionId}&limit=1`
-      );
-      const detailItem = Array.isArray(rows) && rows.length ? rows[0] : null;
-
-      if (!detailItem) {
-        sendJson(res, {
-          ok: false,
-          message: "Khong tim thay ho so can tai chi tiet.",
-        }, 404);
-        return;
-      }
-
-      sendJson(res, {
-        ok: true,
-        item: normalizeSubmission(detailItem),
+        items: Array.isArray(rows) ? rows.map(normalizeSubmission) : [],
       });
       return;
     }
@@ -398,8 +352,6 @@ module.exports = async (req, res) => {
           truth_confirmation: Boolean(body.truthConfirmation),
           media_consent: Boolean(body.mediaConsent),
           consent: Boolean(body.consent),
-          photo_data_url: String(body.photoDataUrl || ""),
-          photo_file_name: String(body.photoFileName || ""),
           hidden: Boolean(body.hidden),
           submitted_at: String(body.submittedAt),
         },

@@ -7,15 +7,7 @@ const BACKGROUND_MUSIC_PLAYLIST = [
 const BACKGROUND_MUSIC_TIME_KEY = "sogieliaBackgroundMusicTime";
 const BACKGROUND_MUSIC_UNLOCK_KEY = "sogieliaBackgroundMusicUnlocked";
 const BACKGROUND_MUSIC_TRACK_INDEX_KEY = "sogieliaBackgroundMusicTrackIndex";
-const MAX_UPLOAD_IMAGE_SIZE = 10 * 1024 * 1024;
-const MIN_UPLOAD_IMAGE_COUNT = 2;
-const MAX_UPLOAD_IMAGE_COUNT = 5;
-const MAX_API_REQUEST_BODY_SIZE = 4 * 1024 * 1024;
-const MAX_UPLOAD_IMAGE_DIMENSION = 1600;
-const OPTIMIZED_UPLOAD_IMAGE_QUALITY = 0.82;
 const selectedSubmissionIds = new Set();
-const submissionDetailCache = new Map();
-const pendingSubmissionDetailRequests = new Map();
 let registrationForm;
 let successMessage;
 let loginForm;
@@ -29,11 +21,7 @@ let exportExcelBtn;
 let hideSelectedBtn;
 let deleteSelectedBtn;
 let submissionSearchInput;
-let photoUploadInput;
-let photoUploadText;
-let selectedPhotoList;
 let backgroundMusicAudio = null;
-let selectedPhotoFiles = [];
 let cachedSubmissionItems = [];
 
 function cacheDomElements() {
@@ -50,74 +38,6 @@ function cacheDomElements() {
   hideSelectedBtn = document.getElementById("hideSelectedBtn");
   deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
   submissionSearchInput = document.getElementById("submissionSearch");
-  photoUploadInput = document.getElementById("photoUpload");
-  photoUploadText = document.getElementById("photoUploadText");
-  selectedPhotoList = document.getElementById("selectedPhotoList");
-}
-
-function getPhotoFileIdentity(file) {
-  return [file.name || "", file.size || 0, file.lastModified || 0].join("::");
-}
-
-function syncPhotoUploadInputFiles(files) {
-  if (!photoUploadInput) {
-    return;
-  }
-
-  try {
-    const dataTransfer = new DataTransfer();
-    files.forEach(function (file) {
-      if (file instanceof File) {
-        dataTransfer.items.add(file);
-      }
-    });
-    photoUploadInput.files = dataTransfer.files;
-  } catch (error) {
-    // Ignore if the browser does not allow programmatic file assignment.
-  }
-}
-
-function mergeSelectedPhotoFiles(nextFiles) {
-  const mergedFiles = [];
-  const seenFileIds = new Set();
-  let hasOverflowFiles = false;
-
-  selectedPhotoFiles.concat(nextFiles).forEach(function (file) {
-    if (!(file instanceof File) || file.size <= 0) {
-      return;
-    }
-
-    const fileId = getPhotoFileIdentity(file);
-    if (seenFileIds.has(fileId)) {
-      return;
-    }
-
-    if (mergedFiles.length >= MAX_UPLOAD_IMAGE_COUNT) {
-      hasOverflowFiles = true;
-      return;
-    }
-
-    seenFileIds.add(fileId);
-    mergedFiles.push(file);
-  });
-
-  selectedPhotoFiles = mergedFiles;
-  syncPhotoUploadInputFiles(selectedPhotoFiles);
-
-  if (hasOverflowFiles) {
-    window.alert(`Chi duoc tai len toi da ${MAX_UPLOAD_IMAGE_COUNT} anh.`);
-  }
-
-  return selectedPhotoFiles;
-}
-
-function removeSelectedPhotoFile(fileId) {
-  selectedPhotoFiles = selectedPhotoFiles.filter(function (file) {
-    return getPhotoFileIdentity(file) !== fileId;
-  });
-
-  syncPhotoUploadInputFiles(selectedPhotoFiles);
-  return selectedPhotoFiles;
 }
 
 function isCurrentPage(pageName) {
@@ -372,7 +292,6 @@ async function navigateToInternalPage(url, options = {}) {
 
   cacheDomElements();
   selectedSubmissionIds.clear();
-  setupRegistrationImagePreview();
   setupNavigationMenus();
   await renderNavigationAuth();
 
@@ -475,95 +394,7 @@ async function requireAdminAuth() {
   }
 }
 
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = function () {
-      resolve(typeof reader.result === "string" ? reader.result : "");
-    };
-
-    reader.onerror = function () {
-      reject(new Error("Khong doc duoc file anh da chon."));
-    };
-
-    reader.readAsDataURL(file);
-  });
-}
-
-function loadImageFromFile(file) {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const image = new Image();
-
-    image.onload = function () {
-      URL.revokeObjectURL(objectUrl);
-      resolve(image);
-    };
-
-    image.onerror = function () {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Khong xu ly duoc anh da chon."));
-    };
-
-    image.src = objectUrl;
-  });
-}
-
-async function optimizeImageForUpload(file) {
-  if (!(file instanceof File) || !String(file.type || "").startsWith("image/")) {
-    return readFileAsDataUrl(file);
-  }
-
-  let image;
-
-  try {
-    image = await loadImageFromFile(file);
-  } catch (error) {
-    return readFileAsDataUrl(file);
-  }
-
-  const sourceWidth = Number(image.naturalWidth || image.width || 0);
-  const sourceHeight = Number(image.naturalHeight || image.height || 0);
-
-  if (!sourceWidth || !sourceHeight) {
-    return readFileAsDataUrl(file);
-  }
-
-  const scale = Math.min(1, MAX_UPLOAD_IMAGE_DIMENSION / Math.max(sourceWidth, sourceHeight));
-  const targetWidth = Math.max(1, Math.round(sourceWidth * scale));
-  const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
-  const canvas = document.createElement("canvas");
-
-  canvas.width = targetWidth;
-  canvas.height = targetHeight;
-
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    return readFileAsDataUrl(file);
-  }
-
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, targetWidth, targetHeight);
-  context.drawImage(image, 0, 0, targetWidth, targetHeight);
-
-  try {
-    return canvas.toDataURL("image/jpeg", OPTIMIZED_UPLOAD_IMAGE_QUALITY);
-  } catch (error) {
-    return readFileAsDataUrl(file);
-  }
-}
-
-function getEstimatedJsonPayloadSize(value) {
-  try {
-    return new Blob([JSON.stringify(value)]).size;
-  } catch (error) {
-    return JSON.stringify(value).length;
-  }
-}
-
-function buildSubmissionPayload(formData, skillReview, photoDataUrls, photoFileNames) {
+function buildSubmissionPayload(formData, skillReview) {
   return {
     id: Date.now(),
     hidden: false,
@@ -586,8 +417,6 @@ function buildSubmissionPayload(formData, skillReview, photoDataUrls, photoFileN
     truthConfirmation: Boolean(formData.get("truthConfirmation")),
     mediaConsent: Boolean(formData.get("mediaConsent")),
     consent: Boolean(formData.get("truthConfirmation") && formData.get("mediaConsent")),
-    photoDataUrl: JSON.stringify(photoDataUrls),
-    photoFileName: JSON.stringify(photoFileNames),
     submittedAt: new Date().toISOString(),
   };
 }
@@ -600,61 +429,7 @@ async function collectFormData(form) {
     `Thuyết trình: ${formData.get("presentationRating") || ""}. ${formData.get("presentationNote") || ""}`.trim(),
     `Quản lý thời gian: ${formData.get("timeManagementRating") || ""}. ${formData.get("timeManagementNote") || ""}`.trim(),
   ].join("\n");
-  const photoFiles = (selectedPhotoFiles.length ? selectedPhotoFiles : formData
-    .getAll("photo"))
-    .filter(function (file) {
-      return file instanceof File && file.size > 0;
-    });
-
-  if (photoFiles.length < MIN_UPLOAD_IMAGE_COUNT) {
-    throw new Error(`Vui lòng tải lên ít nhất ${MIN_UPLOAD_IMAGE_COUNT} ảnh chân dung rõ mặt.`);
-  }
-
-  if (photoFiles.length > MAX_UPLOAD_IMAGE_COUNT) {
-    throw new Error(`Chỉ được tải lên tối đa ${MAX_UPLOAD_IMAGE_COUNT} ảnh chân dung.`);
-  }
-
-  const invalidPhotoFile = photoFiles.find(function (file) {
-    return !file.type.startsWith("image/");
-  });
-
-  if (invalidPhotoFile) {
-    throw new Error("Chi duoc tai len file anh.");
-  }
-
-  const oversizedPhotoFile = photoFiles.find(function (file) {
-    return file.size > MAX_UPLOAD_IMAGE_SIZE;
-  });
-
-  if (oversizedPhotoFile) {
-    throw new Error("Co anh tai len vuot qua 10MB. Vui long chon anh nho hon.");
-  }
-
-  const originalPhotoDataUrls = await Promise.all(
-    photoFiles.map(function (file) {
-      return readFileAsDataUrl(file);
-    })
-  );
-  const photoFileNames = photoFiles.map(function (file) {
-    return file.name || "";
-  });
-  let payload = buildSubmissionPayload(formData, skillReview, originalPhotoDataUrls, photoFileNames);
-
-  if (getEstimatedJsonPayloadSize(payload) > MAX_API_REQUEST_BODY_SIZE) {
-    const optimizedPhotoDataUrls = await Promise.all(
-      photoFiles.map(function (file) {
-        return optimizeImageForUpload(file);
-      })
-    );
-
-    payload = buildSubmissionPayload(formData, skillReview, optimizedPhotoDataUrls, photoFileNames);
-  }
-
-  if (getEstimatedJsonPayloadSize(payload) > MAX_API_REQUEST_BODY_SIZE) {
-    throw new Error("Anh dang tai len qua nang cho server. Vui long chon anh nho hon hoac it anh hon de gui.");
-  }
-
-  return payload;
+  return buildSubmissionPayload(formData, skillReview);
 }
 
 async function apiRequest(action, options) {
@@ -683,9 +458,7 @@ async function apiRequest(action, options) {
   } catch (parseError) {
     let message = "Khong doc duoc phan hoi tu server.";
 
-    if (response.status === 413) {
-      message = "Du lieu anh gui len qua lon nen server tu choi. Vui long chon anh nho hon va thu lai.";
-    } else if (contentType.includes("text/html") || responseText.trim().startsWith("<")) {
+    if (contentType.includes("text/html") || responseText.trim().startsWith("<")) {
       message = "Server dang tra ve HTML thay vi JSON. Voi Vercel, thuong la do API /api chua duoc deploy dung hoac route dang bi sai.";
     } else if (!responseText.trim()) {
       message = "Server tra ve rong. Vui long kiem tra API /api, bien moi truong Vercel va cau hinh Supabase.";
@@ -718,135 +491,6 @@ function formatDateTime(isoString) {
   return new Date(isoString).toLocaleString("vi-VN");
 }
 
-function parseStoredArray(value) {
-  if (Array.isArray(value)) {
-    return value.filter(function (item) {
-      return typeof item === "string" && item.trim() !== "";
-    });
-  }
-
-  if (typeof value !== "string" || !value.trim()) {
-    return [];
-  }
-
-  try {
-    const parsedValue = JSON.parse(value);
-    if (Array.isArray(parsedValue)) {
-      return parsedValue.filter(function (item) {
-        return typeof item === "string" && item.trim() !== "";
-      });
-    }
-  } catch (error) {
-    // Fall back to treating the value as a single stored string.
-  }
-
-  return [value];
-}
-
-function getSubmissionPhotoDataUrls(item) {
-  if (Array.isArray(item.photoDataUrls)) {
-    return item.photoDataUrls.filter(function (value) {
-      return typeof value === "string" && value.trim() !== "";
-    });
-  }
-
-  return parseStoredArray(item.photoDataUrl);
-}
-
-function getSubmissionPhotoFileNames(item) {
-  if (Array.isArray(item.photoFileNames)) {
-    return item.photoFileNames.filter(function (value) {
-      return typeof value === "string" && value.trim() !== "";
-    });
-  }
-
-  return parseStoredArray(item.photoFileName);
-}
-
-function getSubmissionPhotoCount(item) {
-  const explicitCount = Number(item && item.photoCount);
-  if (Number.isInteger(explicitCount) && explicitCount > 0) {
-    return explicitCount;
-  }
-
-  const photoFileNames = getSubmissionPhotoFileNames(item || {});
-  if (photoFileNames.length) {
-    return photoFileNames.length;
-  }
-
-  return getSubmissionPhotoDataUrls(item || {}).length;
-}
-
-function mergeSubmissionDetail(item, detailItem) {
-  const baseItem = item || {};
-  const nextDetailItem = detailItem || {};
-  const mergedPhotoDataUrls = getSubmissionPhotoDataUrls(nextDetailItem).length
-    ? getSubmissionPhotoDataUrls(nextDetailItem)
-    : getSubmissionPhotoDataUrls(baseItem);
-  const mergedPhotoFileNames = getSubmissionPhotoFileNames(nextDetailItem).length
-    ? getSubmissionPhotoFileNames(nextDetailItem)
-    : getSubmissionPhotoFileNames(baseItem);
-
-  return {
-    ...baseItem,
-    ...nextDetailItem,
-    photoDataUrl: mergedPhotoDataUrls[0] || "",
-    photoDataUrls: mergedPhotoDataUrls,
-    photoFileName: mergedPhotoFileNames[0] || "",
-    photoFileNames: mergedPhotoFileNames,
-    photoCount: getSubmissionPhotoCount({
-      ...baseItem,
-      ...nextDetailItem,
-      photoDataUrls: mergedPhotoDataUrls,
-      photoFileNames: mergedPhotoFileNames,
-    }),
-  };
-}
-
-function findCachedSubmissionById(id) {
-  return cachedSubmissionItems.find(function (item) {
-    return Number(item.id) === Number(id);
-  }) || null;
-}
-
-function getImageExtensionFromDataUrl(dataUrl) {
-  const mimeTypeMatch = String(dataUrl || "").match(/^data:(image\/[^;]+);base64,/i);
-  const mimeType = mimeTypeMatch ? mimeTypeMatch[1].toLowerCase() : "";
-
-  switch (mimeType) {
-    case "image/jpeg":
-      return "jpg";
-    case "image/png":
-      return "png";
-    case "image/gif":
-      return "gif";
-    case "image/webp":
-      return "webp";
-    case "image/svg+xml":
-      return "svg";
-    case "image/bmp":
-      return "bmp";
-    case "image/heic":
-      return "heic";
-    case "image/heif":
-      return "heif";
-    default:
-      return "jpg";
-  }
-}
-
-function getSubmissionPhotoDownloadName(item, index, photoUrl, photoFileNames) {
-  const storedFileName = String(photoFileNames[index] || "").trim();
-  if (storedFileName) {
-    return storedFileName;
-  }
-
-  const photoExtension = getImageExtensionFromDataUrl(photoUrl);
-  const submissionId = Number(item.id);
-  const safeSubmissionId = Number.isInteger(submissionId) && submissionId > 0 ? submissionId : "thi-sinh";
-  return `sogielia-${safeSubmissionId}-anh-${index + 1}.${photoExtension}`;
-}
-
 function getSubmissionExtendedAnswers(item) {
   const extraAnswers = Array.isArray(item.expectation) ? item.expectation : [];
 
@@ -855,59 +499,6 @@ function getSubmissionExtendedAnswers(item) {
     hiddenAngles: extraAnswers[1] || "",
     differenceView: extraAnswers[2] || "",
   };
-}
-
-function updateImagePreviewFromFiles(files) {
-  const validFiles = Array.isArray(files)
-    ? files.filter(function (file) {
-        return file instanceof File && file.size > 0;
-      })
-    : [];
-
-  if (photoUploadText) {
-    photoUploadText.textContent = validFiles.length
-      ? `Đã chọn ${validFiles.length}/${MAX_UPLOAD_IMAGE_COUNT} ảnh, bấm để chọn thêm`
-      : "Chưa chọn ảnh nào";
-  }
-
-  if (selectedPhotoList) {
-    if (!validFiles.length) {
-      selectedPhotoList.innerHTML = "";
-    } else {
-      selectedPhotoList.innerHTML = validFiles
-        .map(function (file) {
-          const fileId = getPhotoFileIdentity(file)
-            .replace(/&/g, "&amp;")
-            .replace(/"/g, "&quot;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-          const fileName = String(file.name || "Ảnh đã chọn")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-
-          return `
-            <div class="selected-photo-item">
-              <div class="selected-photo-name">${fileName}</div>
-              <button class="selected-photo-remove" type="button" data-remove-photo-id="${fileId}">Xóa ảnh</button>
-            </div>
-          `;
-        })
-        .join("");
-    }
-  }
-
-  return validFiles;
-}
-
-function setupRegistrationImagePreview() {
-  if (photoUploadInput) {
-    const currentFiles = photoUploadInput.files ? Array.from(photoUploadInput.files) : [];
-    selectedPhotoFiles = currentFiles;
-    updateImagePreviewFromFiles(selectedPhotoFiles);
-  }
-
-  return photoUploadInput;
 }
 
 function setupBackgroundMusic() {
@@ -1071,7 +662,6 @@ function createExcelContent(submissions) {
   const rows = submissions
     .map(function (item) {
       const extendedAnswers = getSubmissionExtendedAnswers(item);
-      const photoCount = getSubmissionPhotoCount(item);
 
       return `
         <tr>
@@ -1090,7 +680,6 @@ function createExcelContent(submissions) {
           <td>${escapeHtml(item.availability || "")}</td>
           <td>${escapeHtml(extendedAnswers.hiddenAngles || "")}</td>
           <td>${escapeHtml(extendedAnswers.differenceView || "")}</td>
-          <td>${photoCount ? `${photoCount} ảnh` : "Không"}</td>
         </tr>
       `;
     })
@@ -1122,7 +711,6 @@ function createExcelContent(submissions) {
               <th>Mảnh ghép kính vạn hoa</th>
               <th>Góc khuất cần được nhìn thấy</th>
               <th>Quan điểm về sự khác biệt</th>
-              <th>Ảnh chân dung</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1137,142 +725,6 @@ async function fetchSubmissions() {
     method: "GET",
   });
   return Array.isArray(data.items) ? data.items : [];
-}
-
-async function fetchSubmissionDetail(id) {
-  const submissionId = Number(id);
-
-  if (!Number.isInteger(submissionId) || submissionId <= 0) {
-    throw new Error("ID ho so khong hop le.");
-  }
-
-  if (submissionDetailCache.has(submissionId)) {
-    return submissionDetailCache.get(submissionId);
-  }
-
-  if (pendingSubmissionDetailRequests.has(submissionId)) {
-    return pendingSubmissionDetailRequests.get(submissionId);
-  }
-
-  const requestPromise = apiRequest("get_submission_detail", {
-    method: "POST",
-    body: JSON.stringify({
-      id: submissionId,
-    }),
-  })
-    .then(function (data) {
-      const item = data.item || null;
-      if (item) {
-        submissionDetailCache.set(submissionId, item);
-      }
-      pendingSubmissionDetailRequests.delete(submissionId);
-      return item;
-    })
-    .catch(function (error) {
-      pendingSubmissionDetailRequests.delete(submissionId);
-      throw error;
-    });
-
-  pendingSubmissionDetailRequests.set(submissionId, requestPromise);
-  return requestPromise;
-}
-
-function getSubmissionPhotoRegionMarkup(item, statusMessage) {
-  const photoDataUrls = getSubmissionPhotoDataUrls(item);
-  const photoFileNames = getSubmissionPhotoFileNames(item);
-  const photoGalleryMarkup = photoDataUrls.length
-    ? photoDataUrls
-        .map(function (photoUrl, index) {
-          const downloadName = getSubmissionPhotoDownloadName(item, index, photoUrl, photoFileNames);
-          const escapedPhotoUrl = escapeHtml(photoUrl);
-          const escapedDownloadName = escapeHtml(downloadName);
-
-          return `
-            <div class="submission-image-card">
-              <img class="submission-image" src="${escapedPhotoUrl}" alt="Ảnh ${index + 1} của ${escapeHtml(item.fullName)}" />
-              <div class="submission-image-actions">
-                <span class="submission-image-name">${escapedDownloadName}</span>
-                <a
-                  class="button button-secondary submission-image-download"
-                  href="${escapedPhotoUrl}"
-                  download="${escapedDownloadName}"
-                  data-no-ajax="true"
-                >
-                  Tải ảnh gốc
-                </a>
-              </div>
-            </div>
-          `;
-        })
-        .join("")
-    : "";
-
-  if (photoGalleryMarkup) {
-    return `
-      <div class="data-block">
-        <strong>Ảnh chân dung đã tải lên</strong>
-        <div class="submission-image-wrap submission-image-grid">
-          ${photoGalleryMarkup}
-        </div>
-      </div>
-    `;
-  }
-
-  if (!statusMessage) {
-    return "";
-  }
-
-  return `
-    <div class="data-block">
-      <strong>Ảnh chân dung đã tải lên</strong>
-      <p class="submission-image-status">${escapeHtml(statusMessage)}</p>
-    </div>
-  `;
-}
-
-async function hydrateSubmissionPhotos(card) {
-  const submissionId = Number(card.dataset.submissionId || "0");
-  const photoRegion = card.querySelector("[data-submission-photo-region]");
-
-  if (!Number.isInteger(submissionId) || submissionId <= 0 || !photoRegion) {
-    return;
-  }
-
-  const summaryItem = findCachedSubmissionById(submissionId) || { id: submissionId };
-  const cachedDetail = submissionDetailCache.get(submissionId);
-  const mergedCachedItem = cachedDetail ? mergeSubmissionDetail(summaryItem, cachedDetail) : summaryItem;
-  const existingPhotoUrls = getSubmissionPhotoDataUrls(mergedCachedItem);
-
-  if (existingPhotoUrls.length) {
-    photoRegion.innerHTML = getSubmissionPhotoRegionMarkup(mergedCachedItem);
-    return;
-  }
-
-  const expectedPhotoCount = getSubmissionPhotoCount(mergedCachedItem);
-  photoRegion.innerHTML = getSubmissionPhotoRegionMarkup(
-    mergedCachedItem,
-    expectedPhotoCount ? `Dang tai ${expectedPhotoCount} anh chan dung...` : "Dang kiem tra anh chan dung da tai len..."
-  );
-
-  try {
-    const detailItem = await fetchSubmissionDetail(submissionId);
-    const mergedDetailItem = mergeSubmissionDetail(summaryItem, detailItem);
-    submissionDetailCache.set(submissionId, mergedDetailItem);
-    photoRegion.innerHTML = getSubmissionPhotoRegionMarkup(
-      mergedDetailItem,
-      getSubmissionPhotoCount(mergedDetailItem) ? "Khong tai duoc anh da tai len." : "Khong co anh chan dung."
-    );
-  } catch (error) {
-    if (error.status === 401) {
-      redirectToLogin();
-      return;
-    }
-
-    photoRegion.innerHTML = getSubmissionPhotoRegionMarkup(
-      mergedCachedItem,
-      expectedPhotoCount ? "Khong tai duoc anh da tai len." : "Khong co anh chan dung."
-    );
-  }
 }
 
 async function updateSubmissionVisibility(id, hidden) {
@@ -1377,20 +829,10 @@ async function renderSubmissionList(options) {
   emptyState.hidden = true;
 
   matchedSubmissions.forEach(function (item) {
-    const cachedDetail = submissionDetailCache.get(Number(item.id));
-    const displayItem = cachedDetail ? mergeSubmissionDetail(item, cachedDetail) : item;
     const extendedAnswers = getSubmissionExtendedAnswers(item);
-    const photoCount = getSubmissionPhotoCount(displayItem);
-    const photoRegionMarkup = getSubmissionPhotoRegionMarkup(
-      displayItem,
-      !getSubmissionPhotoDataUrls(displayItem).length && photoCount
-        ? `Mo ho so de tai ${photoCount} anh chan dung.`
-        : ""
-    );
 
     const card = document.createElement("details");
     card.className = `data-card${item.hidden ? " is-hidden-card" : ""}`;
-    card.dataset.submissionId = String(item.id);
     card.innerHTML = `
       <summary>
         <div class="data-card-head">
@@ -1404,7 +846,6 @@ async function renderSubmissionList(options) {
           </div>
           <div class="data-card-meta">
             <span class="status-pill${item.hidden ? " is-hidden" : ""}">${item.hidden ? "Đã ẩn" : "Đang hiện"}</span>
-            ${photoCount ? `<span class="status-pill">${photoCount} ảnh</span>` : ""}
             <span class="date">${escapeHtml(formatDateTime(item.submittedAt))}</span>
           </div>
         </div>
@@ -1444,7 +885,6 @@ async function renderSubmissionList(options) {
           <strong>Quan điểm về sự khác biệt</strong>
           <p>${escapeHtml(extendedAnswers.differenceView || "Không cung cấp")}</p>
         </div>
-        <div data-submission-photo-region>${photoRegionMarkup}</div>
         <div class="data-card-actions print-hidden">
           <button class="button button-secondary" type="button" data-submission-visibility-id="${item.id}" data-submission-hidden-target="${item.hidden ? "false" : "true"}">
             ${item.hidden ? "Hiện hồ sơ này" : "Ẩn hồ sơ này"}
@@ -1452,11 +892,6 @@ async function renderSubmissionList(options) {
         </div>
       </div>
     `;
-    card.addEventListener("toggle", function () {
-      if (card.open) {
-        hydrateSubmissionPhotos(card);
-      }
-    });
     submissionList.appendChild(card);
   });
 }
@@ -1518,8 +953,6 @@ document.addEventListener("submit", async function (event) {
       successMessage.classList.add("show");
       submittedRegistrationForm.classList.add("submitted");
       submittedRegistrationForm.reset();
-      selectedPhotoFiles = [];
-      updateImagePreviewFromFiles([]);
       submittedRegistrationForm.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (error) {
       submittedRegistrationForm.classList.remove("submitted");
@@ -1535,7 +968,6 @@ document.addEventListener("click", async function (event) {
   const logoutControl = event.target.closest('button[data-auth-action="logout"], #logoutButton');
   const visibilityControl = event.target.closest("button[data-submission-visibility-id]");
   const submissionSelectControl = event.target.closest(".submission-select-control");
-  const removePhotoControl = event.target.closest("[data-remove-photo-id]");
   const hideDataControl = event.target.closest("#hideDataBtn");
   const restoreDataControl = event.target.closest("#restoreDataBtn");
   const exportExcelControl = event.target.closest("#exportExcelBtn");
@@ -1568,12 +1000,6 @@ document.addEventListener("click", async function (event) {
       submissionSelectCheckbox.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
-    return;
-  }
-
-  if (removePhotoControl) {
-    event.preventDefault();
-    updateImagePreviewFromFiles(removeSelectedPhotoFile(removePhotoControl.dataset.removePhotoId || ""));
     return;
   }
 
@@ -1773,13 +1199,6 @@ document.addEventListener("click", async function (event) {
 
 document.addEventListener("change", function (event) {
   const submissionSelectCheckbox = event.target.closest("input[data-submission-select-id]");
-  const changedPhotoInput = event.target.closest("#photoUpload");
-
-  if (changedPhotoInput) {
-    const nextFiles = changedPhotoInput.files ? Array.from(changedPhotoInput.files) : [];
-    updateImagePreviewFromFiles(mergeSelectedPhotoFiles(nextFiles));
-    return;
-  }
 
   if (!submissionSelectCheckbox) {
     return;
@@ -1802,15 +1221,6 @@ document.addEventListener("change", function (event) {
 
   if (submissionCount && submissionList) {
     renderSubmissionList();
-  }
-});
-
-document.addEventListener("click", function (event) {
-  const photoInput = event.target.closest("#photoUpload");
-  const photoUploadTrigger = event.target.closest(".file-upload-box");
-
-  if ((photoInput || photoUploadTrigger) && photoUploadInput) {
-    photoUploadInput.value = "";
   }
 });
 
@@ -1846,7 +1256,6 @@ window.addEventListener("popstate", async function () {
 async function initializePage() {
   cacheDomElements();
   setupBackgroundMusic();
-  setupRegistrationImagePreview();
   setupNavigationMenus();
   renderZaloFab();
   await renderNavigationAuth();
