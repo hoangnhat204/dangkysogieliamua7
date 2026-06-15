@@ -2537,6 +2537,69 @@ details p {
     min-height: auto;
   }
 
+  body.home-page .hero::before,
+  body.home-page .hero::after,
+  body.home-page .beam,
+  body.home-page .hero-art::before,
+  body.home-page .hero-art::after,
+  body.home-page .hero-logo-stage::before,
+  body.home-page .hero-logo-stage::after,
+  body.home-page .hero-logo-frame::before,
+  body.home-page .hero-logo-frame::after {
+    display: none;
+  }
+
+  body.home-page .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+
+  body.home-page .hero-grid > .hero-art {
+    order: 1;
+  }
+
+  body.home-page .hero-grid > div:first-child {
+    order: 2;
+  }
+
+  body.home-page .hero-copy {
+    position: relative;
+    z-index: 2;
+    max-width: none;
+    width: 100%;
+  }
+
+  body.home-page .lead {
+    text-align: left;
+    text-align-last: auto;
+    max-width: none;
+  }
+
+  body.home-page .hero-art {
+    display: grid;
+    min-height: auto;
+    padding-top: 0;
+    justify-items: center;
+  }
+
+  body.home-page .hero-logo-stage {
+    width: min(220px, 70vw);
+  }
+
+  body.home-page .hero-logo-frame {
+    width: 100%;
+    max-width: 220px;
+    margin: 0 auto;
+    border-radius: 26px;
+    overflow: hidden;
+    animation: none;
+  }
+
+  body.home-page .hero-logo-image {
+    object-fit: cover;
+  }
+
   .page-hero {
     padding: 0;
   }
@@ -2553,7 +2616,7 @@ details p {
   .page-title {
     margin: 12px 0 10px;
     font-size: clamp(2.2rem, 12vw, 3.6rem);
-    line-height: 0.96;
+    line-height: 1.06;
     white-space: normal;
   }
 
@@ -2711,13 +2774,18 @@ details p {
   }
 
   .mentor-gallery-item {
+    display: flex;
+    flex-direction: column;
     border-radius: 22px;
     animation: none;
   }
 
   .mentor-gallery-item img {
     min-height: 0;
-    max-height: 520px;
+    max-height: none;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    object-position: center top;
   }
 
   .mentor-gallery-item::after {
@@ -2726,6 +2794,7 @@ details p {
 
   .mentor-gallery-caption {
     padding: 18px;
+    border-top: 1px solid rgba(180, 224, 255, 0.14);
   }
 
   .mentor-gallery-caption h3 {
@@ -2969,18 +3038,18 @@ details p {
 
   .auth-fab {
     bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-    width: 52px;
-    height: 52px;
+    width: 46px;
+    height: 46px;
   }
 
   .zalo-fab {
     bottom: calc(86px + env(safe-area-inset-bottom, 0px));
-    width: 52px;
-    height: 52px;
+    width: 46px;
+    height: 46px;
   }
 
   .auth-fab-icon {
-    font-size: 0.82rem;
+    font-size: 0.72rem;
   }
 
   .login-actions {
@@ -3055,7 +3124,7 @@ details p {
   .page-title,
   h1 {
     font-size: clamp(1.9rem, 10vw, 2.5rem);
-    line-height: 1.02;
+    line-height: 1.08;
   }
 
   .page-subtitle,
@@ -3078,6 +3147,10 @@ details p {
 
   .hero-art {
     min-height: 300px;
+  }
+
+  body.home-page .hero-logo-stage {
+    width: min(180px, 66vw);
   }
 
   .hero-art::before {
@@ -3294,7 +3367,7 @@ details p {
   h1 {
     margin: 10px 0 8px;
     font-size: clamp(1.65rem, 9vw, 2.15rem);
-    line-height: 1.04;
+    line-height: 1.1;
   }
 
   .page-subtitle,
@@ -3328,7 +3401,8 @@ details p {
   }
 
   .mentor-gallery-item img {
-    max-height: 360px;
+    aspect-ratio: 16 / 10;
+    max-height: none;
   }
 
   .mentor-gallery-caption {
