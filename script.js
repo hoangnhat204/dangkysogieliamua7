@@ -7,11 +7,16 @@ const BACKGROUND_MUSIC_PLAYLIST = [
 const BACKGROUND_MUSIC_TIME_KEY = "sogieliaBackgroundMusicTime";
 const BACKGROUND_MUSIC_UNLOCK_KEY = "sogieliaBackgroundMusicUnlocked";
 const BACKGROUND_MUSIC_TRACK_INDEX_KEY = "sogieliaBackgroundMusicTrackIndex";
+const INTERNAL_PAGE_CACHE_LIMIT = 8;
+const ADMIN_AUTH_CACHE_TTL = 30000;
 const selectedSubmissionIds = new Set();
+const internalPageCache = new Map();
 let registrationForm;
 let successMessage;
 let loginForm;
 let loginMessage;
+let submitProgress;
+let submitProgressBar;
 let submissionList;
 let emptyState;
 let submissionCount;
@@ -23,12 +28,22 @@ let deleteSelectedBtn;
 let submissionSearchInput;
 let backgroundMusicAudio = null;
 let cachedSubmissionItems = [];
+let submissionSearchTimer = 0;
+let submitProgressTimer = 0;
+let submitProgressValue = 0;
+let cachedAdminAuthState = {
+  resolved: false,
+  authenticated: false,
+  updatedAt: 0,
+};
 
 function cacheDomElements() {
   registrationForm = document.getElementById("registrationForm");
   successMessage = document.getElementById("successMessage");
   loginForm = document.getElementById("loginForm");
   loginMessage = document.getElementById("loginMessage");
+  submitProgress = document.getElementById("submitProgress");
+  submitProgressBar = document.getElementById("submitProgressBar");
   submissionList = document.getElementById("submissionList");
   emptyState = document.getElementById("emptyState");
   submissionCount = document.getElementById("submissionCount");
@@ -227,6 +242,76 @@ function isInternalNavigationLink(link) {
   }
 }
 
+function getCachedInternalPage(url) {
+  const cacheKey = String(url || "");
+
+  if (!internalPageCache.has(cacheKey)) {
+    return "";
+  }
+
+  const cachedValue = internalPageCache.get(cacheKey) || "";
+  internalPageCache.delete(cacheKey);
+  internalPageCache.set(cacheKey, cachedValue);
+  return cachedValue;
+}
+
+function setCachedInternalPage(url, responseText) {
+  const cacheKey = String(url || "");
+  const nextValue = String(responseText || "");
+
+  if (!cacheKey || !nextValue) {
+    return;
+  }
+
+  if (internalPageCache.has(cacheKey)) {
+    internalPageCache.delete(cacheKey);
+  }
+
+  internalPageCache.set(cacheKey, nextValue);
+
+  while (internalPageCache.size > INTERNAL_PAGE_CACHE_LIMIT) {
+    const oldestCacheKey = internalPageCache.keys().next().value;
+
+    if (!oldestCacheKey) {
+      break;
+    }
+
+    internalPageCache.delete(oldestCacheKey);
+  }
+}
+
+function setCachedAdminAuth(authenticated) {
+  cachedAdminAuthState = {
+    resolved: true,
+    authenticated: Boolean(authenticated),
+    updatedAt: Date.now(),
+  };
+}
+
+async function getAdminAuthStatus(options = {}) {
+  const shouldForceRefresh = options.forceRefresh === true;
+  const cacheAge = Date.now() - cachedAdminAuthState.updatedAt;
+
+  if (
+    !shouldForceRefresh &&
+    cachedAdminAuthState.resolved &&
+    cacheAge >= 0 &&
+    cacheAge < ADMIN_AUTH_CACHE_TTL
+  ) {
+    return {
+      authenticated: cachedAdminAuthState.authenticated,
+    };
+  }
+
+  const status = await apiRequest("admin_status", {
+    method: "GET",
+  });
+  setCachedAdminAuth(Boolean(status.authenticated));
+  return {
+    authenticated: Boolean(status.authenticated),
+  };
+}
+
 async function navigateToInternalPage(url, options = {}) {
   const targetUrl = new URL(url, window.location.href);
 
@@ -240,19 +325,24 @@ async function navigateToInternalPage(url, options = {}) {
   let responseText = "";
 
   try {
-    const response = await fetch(targetUrl.href, {
-      method: "GET",
-      credentials: "same-origin",
-      headers: {
-        "X-Requested-With": "fetch",
-      },
-    });
+    responseText = !options.forceLoad ? getCachedInternalPage(targetUrl.href) : "";
 
-    if (!response.ok) {
-      throw new Error("Khong tai duoc trang.");
+    if (!responseText) {
+      const response = await fetch(targetUrl.href, {
+        method: "GET",
+        credentials: "same-origin",
+        headers: {
+          "X-Requested-With": "fetch",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Khong tai duoc trang.");
+      }
+
+      responseText = await response.text();
+      setCachedInternalPage(targetUrl.href, responseText);
     }
-
-    responseText = await response.text();
   } catch (error) {
     window.location.href = targetUrl.href;
     return;
@@ -320,9 +410,7 @@ async function renderNavigationAuth() {
   let authenticated = false;
 
   try {
-    const status = await apiRequest("admin_status", {
-      method: "GET",
-    });
+    const status = await getAdminAuthStatus();
     authenticated = Boolean(status.authenticated);
   } catch (error) {
     authenticated = false;
@@ -370,9 +458,7 @@ async function requireAdminAuth() {
   }
 
   try {
-    const status = await apiRequest("admin_status", {
-      method: "GET",
-    });
+    const status = await getAdminAuthStatus();
 
     if (isAdminPage && !status.authenticated) {
       redirectToLogin();
@@ -430,6 +516,79 @@ async function collectFormData(form) {
     `Quản lý thời gian: ${formData.get("timeManagementRating") || ""}. ${formData.get("timeManagementNote") || ""}`.trim(),
   ].join("\n");
   return buildSubmissionPayload(formData, skillReview);
+}
+
+function setSubmitProgressValue(value) {
+  if (!submitProgressBar) {
+    return;
+  }
+
+  submitProgressValue = Math.max(0, Math.min(100, Number(value) || 0));
+  submitProgressBar.style.width = `${submitProgressValue}%`;
+}
+
+function clearSubmitProgressTimer() {
+  if (submitProgressTimer) {
+    window.clearInterval(submitProgressTimer);
+    submitProgressTimer = 0;
+  }
+}
+
+function startSubmitProgress() {
+  if (!submitProgress || !submitProgressBar) {
+    return;
+  }
+
+  clearSubmitProgressTimer();
+  submitProgress.classList.add("is-active");
+  submitProgress.classList.remove("is-success", "is-error");
+  setSubmitProgressValue(6);
+
+  submitProgressTimer = window.setInterval(function () {
+    const nextValue = submitProgressValue < 55
+      ? submitProgressValue + 7
+      : submitProgressValue < 78
+        ? submitProgressValue + 3
+        : submitProgressValue + 1.2;
+
+    setSubmitProgressValue(Math.min(88, nextValue));
+  }, 140);
+}
+
+function completeSubmitProgress() {
+  if (!submitProgress || !submitProgressBar) {
+    return;
+  }
+
+  clearSubmitProgressTimer();
+  submitProgress.classList.add("is-active", "is-success");
+  submitProgress.classList.remove("is-error");
+  setSubmitProgressValue(100);
+}
+
+function failSubmitProgress() {
+  if (!submitProgress || !submitProgressBar) {
+    return;
+  }
+
+  clearSubmitProgressTimer();
+  submitProgress.classList.add("is-active", "is-error");
+  submitProgress.classList.remove("is-success");
+  setSubmitProgressValue(Math.max(18, submitProgressValue));
+
+  window.setTimeout(function () {
+    resetSubmitProgress();
+  }, 900);
+}
+
+function resetSubmitProgress() {
+  if (!submitProgress || !submitProgressBar) {
+    return;
+  }
+
+  clearSubmitProgressTimer();
+  submitProgress.classList.remove("is-active", "is-success", "is-error");
+  setSubmitProgressValue(0);
 }
 
 async function apiRequest(action, options) {
@@ -516,12 +675,20 @@ function setupBackgroundMusic() {
   }
 
   audio.src = BACKGROUND_MUSIC_PLAYLIST[trackIndex];
-  audio.preload = "auto";
+  audio.preload = "none";
   audio.setAttribute("playsinline", "");
   audio.style.display = "none";
   document.body.appendChild(audio);
+  let lastStoredSecond = -1;
 
   function syncStoredPlayback() {
+    const currentSecond = Math.floor(Number(audio.currentTime || 0));
+
+    if (currentSecond === lastStoredSecond) {
+      return;
+    }
+
+    lastStoredSecond = currentSecond;
     sessionStorage.setItem(BACKGROUND_MUSIC_TRACK_INDEX_KEY, String(trackIndex));
     sessionStorage.setItem(BACKGROUND_MUSIC_TIME_KEY, String(audio.currentTime || 0));
   }
@@ -573,6 +740,9 @@ function setupBackgroundMusic() {
 
   async function startPlayback() {
     try {
+      if (audio.preload === "none") {
+        audio.preload = "metadata";
+      }
       await audio.play();
       playbackUnlocked = true;
       sessionStorage.setItem(BACKGROUND_MUSIC_UNLOCK_KEY, "true");
@@ -596,7 +766,13 @@ function setupBackgroundMusic() {
       }
     });
   }
-  startPlayback();
+
+  if (playbackUnlocked) {
+    window.setTimeout(function () {
+      startPlayback();
+    }, 300);
+  }
+
   document.addEventListener("click", unlockPlayback);
   document.addEventListener("keydown", unlockPlayback);
   document.addEventListener("touchstart", unlockPlayback, { passive: true });
@@ -656,6 +832,16 @@ function updateSelectedActionButtons() {
     deleteSelectedBtn.disabled = selectedCount === 0;
     deleteSelectedBtn.textContent = selectedCount ? `Xóa ${selectedCount} thí sinh đã chọn` : "Xóa thí sinh đã chọn";
   }
+}
+
+function getSubmissionSummaryText(items) {
+  const sourceItems = Array.isArray(items) ? items : [];
+  const visibleSubmissions = getVisibleSubmissions(sourceItems);
+  const hiddenSubmissions = getHiddenSubmissions(sourceItems);
+  const keyword = submissionSearchInput ? submissionSearchInput.value : "";
+  const matchedSubmissions = filterSubmissionsByName(visibleSubmissions, keyword);
+
+  return `${visibleSubmissions.length} hồ sơ đang hiển thị${hiddenSubmissions.length ? ` | ${hiddenSubmissions.length} hồ sơ đã ẩn` : ""}${keyword.trim() ? ` | ${matchedSubmissions.length} kết quả phù hợp` : ""}${selectedSubmissionIds.size ? ` | ${selectedSubmissionIds.size} hồ sơ đã chọn` : ""}`;
 }
 
 function createExcelContent(submissions) {
@@ -798,7 +984,7 @@ async function renderSubmissionList(options) {
   const matchedSubmissions = filterSubmissionsByName(visibleSubmissions, keyword).sort(function (left, right) {
     return new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime();
   });
-  submissionCount.textContent = `${visibleSubmissions.length} hồ sơ đang hiển thị${hiddenSubmissions.length ? ` | ${hiddenSubmissions.length} hồ sơ đã ẩn` : ""}${keyword.trim() ? ` | ${matchedSubmissions.length} kết quả phù hợp` : ""}${selectedSubmissionIds.size ? ` | ${selectedSubmissionIds.size} hồ sơ đã chọn` : ""}`;
+  submissionCount.textContent = getSubmissionSummaryText(submissions);
   submissionList.innerHTML = "";
   updateSelectedActionButtons();
 
@@ -827,6 +1013,7 @@ async function renderSubmissionList(options) {
   }
 
   emptyState.hidden = true;
+  const fragment = document.createDocumentFragment();
 
   matchedSubmissions.forEach(function (item) {
     const extendedAnswers = getSubmissionExtendedAnswers(item);
@@ -892,8 +1079,10 @@ async function renderSubmissionList(options) {
         </div>
       </div>
     `;
-    submissionList.appendChild(card);
+    fragment.appendChild(card);
   });
+
+  submissionList.appendChild(fragment);
 }
 
 document.addEventListener("submit", async function (event) {
@@ -920,6 +1109,7 @@ document.addEventListener("submit", async function (event) {
           password: password,
         }),
       });
+      setCachedAdminAuth(true);
 
       await navigateToInternalPage("admin.html");
       return;
@@ -940,6 +1130,7 @@ document.addEventListener("submit", async function (event) {
     }
 
     successMessage.classList.remove("show", "error");
+    startSubmitProgress();
 
     try {
       const payload = await collectFormData(submittedRegistrationForm);
@@ -949,12 +1140,14 @@ document.addEventListener("submit", async function (event) {
         body: JSON.stringify(payload),
       });
 
+      completeSubmitProgress();
       successMessage.textContent = "Đăng ký thành công";
       successMessage.classList.add("show");
       submittedRegistrationForm.classList.add("submitted");
       submittedRegistrationForm.reset();
       submittedRegistrationForm.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (error) {
+      failSubmitProgress();
       submittedRegistrationForm.classList.remove("submitted");
       successMessage.textContent =
         error.message || "Khong gui duoc du lieu len server. Vui long kiem tra Vercel, Supabase va route /api.";
@@ -1190,8 +1383,10 @@ document.addEventListener("click", async function (event) {
       method: "POST",
       body: JSON.stringify({}),
     });
+      setCachedAdminAuth(false);
   } catch (error) {
     // Redirect anyway so the user is not stuck if the session is already gone.
+      setCachedAdminAuth(false);
   }
 
   await navigateToInternalPage("login.html");
@@ -1219,14 +1414,17 @@ document.addEventListener("change", function (event) {
 
   updateSelectedActionButtons();
 
-  if (submissionCount && submissionList) {
-    renderSubmissionList();
+  if (submissionCount) {
+    submissionCount.textContent = getSubmissionSummaryText(cachedSubmissionItems);
   }
 });
 
 document.addEventListener("input", function (event) {
   if (event.target.closest("#submissionSearch")) {
-    renderSubmissionList();
+    window.clearTimeout(submissionSearchTimer);
+    submissionSearchTimer = window.setTimeout(function () {
+      renderSubmissionList();
+    }, 120);
   }
 });
 
@@ -1258,6 +1456,7 @@ async function initializePage() {
   setupBackgroundMusic();
   setupNavigationMenus();
   renderZaloFab();
+  setCachedInternalPage(window.location.href, document.documentElement.outerHTML);
   await renderNavigationAuth();
 
   if (isCurrentPage("admin.html")) {
