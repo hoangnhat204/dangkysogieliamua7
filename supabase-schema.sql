@@ -12,6 +12,8 @@ create table if not exists public.submissions (
   strength text not null default '',
   expectation_json text not null default '[]',
   availability text not null default '',
+  truth_confirmation boolean not null default false,
+  media_consent boolean not null default false,
   consent boolean not null default false,
   photo_data_url text not null default '',
   photo_file_name text not null default '',
@@ -31,6 +33,8 @@ alter table public.submissions add column if not exists story text;
 alter table public.submissions add column if not exists strength text;
 alter table public.submissions add column if not exists expectation_json text;
 alter table public.submissions add column if not exists availability text;
+alter table public.submissions add column if not exists truth_confirmation boolean;
+alter table public.submissions add column if not exists media_consent boolean;
 alter table public.submissions add column if not exists consent boolean;
 alter table public.submissions add column if not exists photo_data_url text;
 alter table public.submissions add column if not exists photo_file_name text;
@@ -54,6 +58,8 @@ set
     else expectation_json
   end,
   availability = coalesce(availability, ''),
+  truth_confirmation = coalesce(truth_confirmation, consent, false),
+  media_consent = coalesce(media_consent, consent, false),
   consent = coalesce(consent, false),
   photo_data_url = coalesce(photo_data_url, ''),
   photo_file_name = coalesce(photo_file_name, ''),
@@ -76,6 +82,8 @@ where
   or expectation_json is null
   or btrim(expectation_json) = ''
   or availability is null
+  or truth_confirmation is null
+  or media_consent is null
   or consent is null
   or photo_data_url is null
   or photo_file_name is null
@@ -95,6 +103,8 @@ alter table public.submissions alter column story set default '';
 alter table public.submissions alter column strength set default '';
 alter table public.submissions alter column expectation_json set default '[]';
 alter table public.submissions alter column availability set default '';
+alter table public.submissions alter column truth_confirmation set default false;
+alter table public.submissions alter column media_consent set default false;
 alter table public.submissions alter column consent set default false;
 alter table public.submissions alter column photo_data_url set default '';
 alter table public.submissions alter column photo_file_name set default '';
@@ -113,6 +123,8 @@ alter table public.submissions alter column story set not null;
 alter table public.submissions alter column strength set not null;
 alter table public.submissions alter column expectation_json set not null;
 alter table public.submissions alter column availability set not null;
+alter table public.submissions alter column truth_confirmation set not null;
+alter table public.submissions alter column media_consent set not null;
 alter table public.submissions alter column consent set not null;
 alter table public.submissions alter column photo_data_url set not null;
 alter table public.submissions alter column photo_file_name set not null;

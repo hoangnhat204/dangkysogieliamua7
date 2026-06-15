@@ -2579,25 +2579,56 @@ details p {
   body.home-page .hero-art {
     display: grid;
     min-height: auto;
-    padding-top: 0;
+    padding-top: 6px;
     justify-items: center;
   }
 
   body.home-page .hero-logo-stage {
-    width: min(220px, 70vw);
+    width: min(250px, 74vw);
+    aspect-ratio: 1;
   }
 
   body.home-page .hero-logo-frame {
     width: 100%;
-    max-width: 220px;
+    max-width: 250px;
     margin: 0 auto;
-    border-radius: 26px;
+    border-radius: 50%;
     overflow: hidden;
-    animation: none;
+    border: 1px solid rgba(196, 232, 255, 0.24);
+    box-shadow:
+      0 0 0 8px rgba(122, 190, 255, 0.06),
+      0 0 34px rgba(110, 228, 255, 0.18),
+      0 0 56px rgba(132, 111, 255, 0.14);
+    animation: heroFloat 4.2s ease-in-out infinite;
   }
 
   body.home-page .hero-logo-image {
     object-fit: cover;
+    transform: scale(1.06);
+    filter:
+      saturate(1.16)
+      brightness(1.08)
+      contrast(1.04)
+      drop-shadow(0 0 18px rgba(255, 255, 255, 0.18));
+  }
+
+  body.home-page .hero-logo-stage::before,
+  body.home-page .hero-logo-stage::after {
+    display: block;
+  }
+
+  body.home-page .hero-logo-stage::before {
+    inset: 5%;
+    filter: blur(14px);
+    opacity: 0.95;
+  }
+
+  body.home-page .hero-logo-stage::after {
+    inset: 8%;
+    box-shadow:
+      0 0 30px rgba(63, 168, 255, 0.24),
+      0 0 78px rgba(113, 228, 255, 0.12),
+      inset 0 0 18px rgba(255, 255, 255, 0.08);
   }
 
   .page-hero {
@@ -2655,8 +2686,8 @@ details p {
   .submit-note,
   .helper-text,
   .field-help {
-    text-align: left;
-    text-align-last: auto;
+    text-align: justify;
+    text-align-last: left;
     overflow-wrap: anywhere;
   }
 
@@ -3150,7 +3181,7 @@ details p {
   }
 
   body.home-page .hero-logo-stage {
-    width: min(180px, 66vw);
+    width: min(220px, 76vw);
   }
 
   .hero-art::before {
@@ -3390,6 +3421,10 @@ details p {
   .timeline-item p {
     font-size: 0.88rem;
     line-height: 1.58;
+  }
+
+  body.home-page .hero-logo-stage {
+    width: min(200px, 80vw);
   }
 
   .mentor-gallery {
