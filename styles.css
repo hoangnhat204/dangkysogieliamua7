@@ -2255,6 +2255,11 @@ body.home-page .footer {
   overflow-wrap: anywhere;
 }
 
+.submission-image-status {
+  margin: 10px 0 0;
+  color: var(--muted-strong);
+}
+
 .submission-image-download {
   width: 100%;
   justify-content: center;

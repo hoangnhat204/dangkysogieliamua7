@@ -10,7 +10,12 @@ const BACKGROUND_MUSIC_TRACK_INDEX_KEY = "sogieliaBackgroundMusicTrackIndex";
 const MAX_UPLOAD_IMAGE_SIZE = 10 * 1024 * 1024;
 const MIN_UPLOAD_IMAGE_COUNT = 2;
 const MAX_UPLOAD_IMAGE_COUNT = 5;
+const MAX_API_REQUEST_BODY_SIZE = 4 * 1024 * 1024;
+const MAX_UPLOAD_IMAGE_DIMENSION = 1600;
+const OPTIMIZED_UPLOAD_IMAGE_QUALITY = 0.82;
 const selectedSubmissionIds = new Set();
+const submissionDetailCache = new Map();
+const pendingSubmissionDetailRequests = new Map();
 let registrationForm;
 let successMessage;
 let loginForm;
@@ -29,6 +34,7 @@ let photoUploadText;
 let selectedPhotoList;
 let backgroundMusicAudio = null;
 let selectedPhotoFiles = [];
+let cachedSubmissionItems = [];
 
 function cacheDomElements() {
   registrationForm = document.getElementById("registrationForm");
@@ -485,6 +491,107 @@ function readFileAsDataUrl(file) {
   });
 }
 
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = function () {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+
+    image.onerror = function () {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Khong xu ly duoc anh da chon."));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+async function optimizeImageForUpload(file) {
+  if (!(file instanceof File) || !String(file.type || "").startsWith("image/")) {
+    return readFileAsDataUrl(file);
+  }
+
+  let image;
+
+  try {
+    image = await loadImageFromFile(file);
+  } catch (error) {
+    return readFileAsDataUrl(file);
+  }
+
+  const sourceWidth = Number(image.naturalWidth || image.width || 0);
+  const sourceHeight = Number(image.naturalHeight || image.height || 0);
+
+  if (!sourceWidth || !sourceHeight) {
+    return readFileAsDataUrl(file);
+  }
+
+  const scale = Math.min(1, MAX_UPLOAD_IMAGE_DIMENSION / Math.max(sourceWidth, sourceHeight));
+  const targetWidth = Math.max(1, Math.round(sourceWidth * scale));
+  const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
+  const canvas = document.createElement("canvas");
+
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    return readFileAsDataUrl(file);
+  }
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, targetWidth, targetHeight);
+  context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+  try {
+    return canvas.toDataURL("image/jpeg", OPTIMIZED_UPLOAD_IMAGE_QUALITY);
+  } catch (error) {
+    return readFileAsDataUrl(file);
+  }
+}
+
+function getEstimatedJsonPayloadSize(value) {
+  try {
+    return new Blob([JSON.stringify(value)]).size;
+  } catch (error) {
+    return JSON.stringify(value).length;
+  }
+}
+
+function buildSubmissionPayload(formData, skillReview, photoDataUrls, photoFileNames) {
+  return {
+    id: Date.now(),
+    hidden: false,
+    fullName: formData.get("fullName") || "",
+    birthYear: formData.get("birthYear") || "",
+    phone: formData.get("phone") || "",
+    email: formData.get("email") || "",
+    city: formData.get("city") || "",
+    occupation: formData.get("occupation") || "",
+    identity: formData.get("identity") || "",
+    motivation: formData.get("motivation") || "",
+    story: formData.get("story") || "",
+    strength: formData.get("strength") || "",
+    expectation: [
+      skillReview,
+      formData.get("question13") || "",
+      formData.get("question14") || "",
+    ],
+    availability: formData.get("availability") || "",
+    truthConfirmation: Boolean(formData.get("truthConfirmation")),
+    mediaConsent: Boolean(formData.get("mediaConsent")),
+    consent: Boolean(formData.get("truthConfirmation") && formData.get("mediaConsent")),
+    photoDataUrl: JSON.stringify(photoDataUrls),
+    photoFileName: JSON.stringify(photoFileNames),
+    submittedAt: new Date().toISOString(),
+  };
+}
+
 async function collectFormData(form) {
   const formData = new FormData(form);
   const skillReview = [
@@ -523,7 +630,7 @@ async function collectFormData(form) {
     throw new Error("Co anh tai len vuot qua 10MB. Vui long chon anh nho hon.");
   }
 
-  const photoDataUrls = await Promise.all(
+  const originalPhotoDataUrls = await Promise.all(
     photoFiles.map(function (file) {
       return readFileAsDataUrl(file);
     })
@@ -531,33 +638,23 @@ async function collectFormData(form) {
   const photoFileNames = photoFiles.map(function (file) {
     return file.name || "";
   });
+  let payload = buildSubmissionPayload(formData, skillReview, originalPhotoDataUrls, photoFileNames);
 
-  return {
-    id: Date.now(),
-    hidden: false,
-    fullName: formData.get("fullName") || "",
-    birthYear: formData.get("birthYear") || "",
-    phone: formData.get("phone") || "",
-    email: formData.get("email") || "",
-    city: formData.get("city") || "",
-    occupation: formData.get("occupation") || "",
-    identity: formData.get("identity") || "",
-    motivation: formData.get("motivation") || "",
-    story: formData.get("story") || "",
-    strength: formData.get("strength") || "",
-    expectation: [
-      skillReview,
-      formData.get("question13") || "",
-      formData.get("question14") || "",
-    ],
-    availability: formData.get("availability") || "",
-    truthConfirmation: Boolean(formData.get("truthConfirmation")),
-    mediaConsent: Boolean(formData.get("mediaConsent")),
-    consent: Boolean(formData.get("truthConfirmation") && formData.get("mediaConsent")),
-    photoDataUrl: JSON.stringify(photoDataUrls),
-    photoFileName: JSON.stringify(photoFileNames),
-    submittedAt: new Date().toISOString(),
-  };
+  if (getEstimatedJsonPayloadSize(payload) > MAX_API_REQUEST_BODY_SIZE) {
+    const optimizedPhotoDataUrls = await Promise.all(
+      photoFiles.map(function (file) {
+        return optimizeImageForUpload(file);
+      })
+    );
+
+    payload = buildSubmissionPayload(formData, skillReview, optimizedPhotoDataUrls, photoFileNames);
+  }
+
+  if (getEstimatedJsonPayloadSize(payload) > MAX_API_REQUEST_BODY_SIZE) {
+    throw new Error("Anh dang tai len qua nang cho server. Vui long chon anh nho hon hoac it anh hon de gui.");
+  }
+
+  return payload;
 }
 
 async function apiRequest(action, options) {
@@ -586,7 +683,9 @@ async function apiRequest(action, options) {
   } catch (parseError) {
     let message = "Khong doc duoc phan hoi tu server.";
 
-    if (contentType.includes("text/html") || responseText.trim().startsWith("<")) {
+    if (response.status === 413) {
+      message = "Du lieu anh gui len qua lon nen server tu choi. Vui long chon anh nho hon va thu lai.";
+    } else if (contentType.includes("text/html") || responseText.trim().startsWith("<")) {
       message = "Server dang tra ve HTML thay vi JSON. Voi Vercel, thuong la do API /api chua duoc deploy dung hoac route dang bi sai.";
     } else if (!responseText.trim()) {
       message = "Server tra ve rong. Vui long kiem tra API /api, bien moi truong Vercel va cau hinh Supabase.";
@@ -662,6 +761,52 @@ function getSubmissionPhotoFileNames(item) {
   }
 
   return parseStoredArray(item.photoFileName);
+}
+
+function getSubmissionPhotoCount(item) {
+  const explicitCount = Number(item && item.photoCount);
+  if (Number.isInteger(explicitCount) && explicitCount > 0) {
+    return explicitCount;
+  }
+
+  const photoFileNames = getSubmissionPhotoFileNames(item || {});
+  if (photoFileNames.length) {
+    return photoFileNames.length;
+  }
+
+  return getSubmissionPhotoDataUrls(item || {}).length;
+}
+
+function mergeSubmissionDetail(item, detailItem) {
+  const baseItem = item || {};
+  const nextDetailItem = detailItem || {};
+  const mergedPhotoDataUrls = getSubmissionPhotoDataUrls(nextDetailItem).length
+    ? getSubmissionPhotoDataUrls(nextDetailItem)
+    : getSubmissionPhotoDataUrls(baseItem);
+  const mergedPhotoFileNames = getSubmissionPhotoFileNames(nextDetailItem).length
+    ? getSubmissionPhotoFileNames(nextDetailItem)
+    : getSubmissionPhotoFileNames(baseItem);
+
+  return {
+    ...baseItem,
+    ...nextDetailItem,
+    photoDataUrl: mergedPhotoDataUrls[0] || "",
+    photoDataUrls: mergedPhotoDataUrls,
+    photoFileName: mergedPhotoFileNames[0] || "",
+    photoFileNames: mergedPhotoFileNames,
+    photoCount: getSubmissionPhotoCount({
+      ...baseItem,
+      ...nextDetailItem,
+      photoDataUrls: mergedPhotoDataUrls,
+      photoFileNames: mergedPhotoFileNames,
+    }),
+  };
+}
+
+function findCachedSubmissionById(id) {
+  return cachedSubmissionItems.find(function (item) {
+    return Number(item.id) === Number(id);
+  }) || null;
 }
 
 function getImageExtensionFromDataUrl(dataUrl) {
@@ -926,7 +1071,7 @@ function createExcelContent(submissions) {
   const rows = submissions
     .map(function (item) {
       const extendedAnswers = getSubmissionExtendedAnswers(item);
-      const photoDataUrls = getSubmissionPhotoDataUrls(item);
+      const photoCount = getSubmissionPhotoCount(item);
 
       return `
         <tr>
@@ -945,7 +1090,7 @@ function createExcelContent(submissions) {
           <td>${escapeHtml(item.availability || "")}</td>
           <td>${escapeHtml(extendedAnswers.hiddenAngles || "")}</td>
           <td>${escapeHtml(extendedAnswers.differenceView || "")}</td>
-          <td>${photoDataUrls.length ? `${photoDataUrls.length} ảnh` : "Không"}</td>
+          <td>${photoCount ? `${photoCount} ảnh` : "Không"}</td>
         </tr>
       `;
     })
@@ -994,6 +1139,142 @@ async function fetchSubmissions() {
   return Array.isArray(data.items) ? data.items : [];
 }
 
+async function fetchSubmissionDetail(id) {
+  const submissionId = Number(id);
+
+  if (!Number.isInteger(submissionId) || submissionId <= 0) {
+    throw new Error("ID ho so khong hop le.");
+  }
+
+  if (submissionDetailCache.has(submissionId)) {
+    return submissionDetailCache.get(submissionId);
+  }
+
+  if (pendingSubmissionDetailRequests.has(submissionId)) {
+    return pendingSubmissionDetailRequests.get(submissionId);
+  }
+
+  const requestPromise = apiRequest("get_submission_detail", {
+    method: "POST",
+    body: JSON.stringify({
+      id: submissionId,
+    }),
+  })
+    .then(function (data) {
+      const item = data.item || null;
+      if (item) {
+        submissionDetailCache.set(submissionId, item);
+      }
+      pendingSubmissionDetailRequests.delete(submissionId);
+      return item;
+    })
+    .catch(function (error) {
+      pendingSubmissionDetailRequests.delete(submissionId);
+      throw error;
+    });
+
+  pendingSubmissionDetailRequests.set(submissionId, requestPromise);
+  return requestPromise;
+}
+
+function getSubmissionPhotoRegionMarkup(item, statusMessage) {
+  const photoDataUrls = getSubmissionPhotoDataUrls(item);
+  const photoFileNames = getSubmissionPhotoFileNames(item);
+  const photoGalleryMarkup = photoDataUrls.length
+    ? photoDataUrls
+        .map(function (photoUrl, index) {
+          const downloadName = getSubmissionPhotoDownloadName(item, index, photoUrl, photoFileNames);
+          const escapedPhotoUrl = escapeHtml(photoUrl);
+          const escapedDownloadName = escapeHtml(downloadName);
+
+          return `
+            <div class="submission-image-card">
+              <img class="submission-image" src="${escapedPhotoUrl}" alt="Ảnh ${index + 1} của ${escapeHtml(item.fullName)}" />
+              <div class="submission-image-actions">
+                <span class="submission-image-name">${escapedDownloadName}</span>
+                <a
+                  class="button button-secondary submission-image-download"
+                  href="${escapedPhotoUrl}"
+                  download="${escapedDownloadName}"
+                  data-no-ajax="true"
+                >
+                  Tải ảnh gốc
+                </a>
+              </div>
+            </div>
+          `;
+        })
+        .join("")
+    : "";
+
+  if (photoGalleryMarkup) {
+    return `
+      <div class="data-block">
+        <strong>Ảnh chân dung đã tải lên</strong>
+        <div class="submission-image-wrap submission-image-grid">
+          ${photoGalleryMarkup}
+        </div>
+      </div>
+    `;
+  }
+
+  if (!statusMessage) {
+    return "";
+  }
+
+  return `
+    <div class="data-block">
+      <strong>Ảnh chân dung đã tải lên</strong>
+      <p class="submission-image-status">${escapeHtml(statusMessage)}</p>
+    </div>
+  `;
+}
+
+async function hydrateSubmissionPhotos(card) {
+  const submissionId = Number(card.dataset.submissionId || "0");
+  const photoRegion = card.querySelector("[data-submission-photo-region]");
+
+  if (!Number.isInteger(submissionId) || submissionId <= 0 || !photoRegion) {
+    return;
+  }
+
+  const summaryItem = findCachedSubmissionById(submissionId) || { id: submissionId };
+  const cachedDetail = submissionDetailCache.get(submissionId);
+  const mergedCachedItem = cachedDetail ? mergeSubmissionDetail(summaryItem, cachedDetail) : summaryItem;
+  const existingPhotoUrls = getSubmissionPhotoDataUrls(mergedCachedItem);
+
+  if (existingPhotoUrls.length) {
+    photoRegion.innerHTML = getSubmissionPhotoRegionMarkup(mergedCachedItem);
+    return;
+  }
+
+  const expectedPhotoCount = getSubmissionPhotoCount(mergedCachedItem);
+  photoRegion.innerHTML = getSubmissionPhotoRegionMarkup(
+    mergedCachedItem,
+    expectedPhotoCount ? `Dang tai ${expectedPhotoCount} anh chan dung...` : "Dang kiem tra anh chan dung da tai len..."
+  );
+
+  try {
+    const detailItem = await fetchSubmissionDetail(submissionId);
+    const mergedDetailItem = mergeSubmissionDetail(summaryItem, detailItem);
+    submissionDetailCache.set(submissionId, mergedDetailItem);
+    photoRegion.innerHTML = getSubmissionPhotoRegionMarkup(
+      mergedDetailItem,
+      getSubmissionPhotoCount(mergedDetailItem) ? "Khong tai duoc anh da tai len." : "Khong co anh chan dung."
+    );
+  } catch (error) {
+    if (error.status === 401) {
+      redirectToLogin();
+      return;
+    }
+
+    photoRegion.innerHTML = getSubmissionPhotoRegionMarkup(
+      mergedCachedItem,
+      expectedPhotoCount ? "Khong tai duoc anh da tai len." : "Khong co anh chan dung."
+    );
+  }
+}
+
 async function updateSubmissionVisibility(id, hidden) {
   const data = await apiRequest("update_submission_visibility", {
     method: "POST",
@@ -1028,28 +1309,33 @@ async function deleteSelectedSubmissions(ids) {
   return Array.isArray(data.deletedIds) ? data.deletedIds : [];
 }
 
-async function renderSubmissionList() {
+async function renderSubmissionList(options) {
   if (!submissionList || !emptyState || !submissionCount) {
     return;
   }
 
-  let submissions = [];
+  const nextOptions = options || {};
+  const shouldRefresh = nextOptions.forceRefresh === true || !cachedSubmissionItems.length;
+  let submissions = cachedSubmissionItems.slice();
 
-  try {
-    submissions = await fetchSubmissions();
-  } catch (error) {
-    if (error.status === 401) {
-      redirectToLogin();
+  if (shouldRefresh) {
+    try {
+      submissions = await fetchSubmissions();
+      cachedSubmissionItems = submissions.slice();
+    } catch (error) {
+      if (error.status === 401) {
+        redirectToLogin();
+        return;
+      }
+      emptyState.hidden = false;
+      emptyState.textContent = "Khong tai duoc du lieu tu server. Vui long kiem tra Vercel, route /api va cau hinh Supabase.";
+      submissionList.innerHTML = "";
+      submissionCount.textContent = "Khong tai duoc du lieu";
+      if (restoreDataBtn) {
+        restoreDataBtn.hidden = true;
+      }
       return;
     }
-    emptyState.hidden = false;
-    emptyState.textContent = "Khong tai duoc du lieu tu server. Vui long kiem tra Vercel, route /api va cau hinh Supabase.";
-    submissionList.innerHTML = "";
-    submissionCount.textContent = "Khong tai duoc du lieu";
-    if (restoreDataBtn) {
-      restoreDataBtn.hidden = true;
-    }
-    return;
   }
 
   syncSelectedSubmissionIds(submissions);
@@ -1091,38 +1377,20 @@ async function renderSubmissionList() {
   emptyState.hidden = true;
 
   matchedSubmissions.forEach(function (item) {
+    const cachedDetail = submissionDetailCache.get(Number(item.id));
+    const displayItem = cachedDetail ? mergeSubmissionDetail(item, cachedDetail) : item;
     const extendedAnswers = getSubmissionExtendedAnswers(item);
-    const photoDataUrls = getSubmissionPhotoDataUrls(item);
-    const photoFileNames = getSubmissionPhotoFileNames(item);
-    const photoGalleryMarkup = photoDataUrls.length
-      ? photoDataUrls
-          .map(function (photoUrl, index) {
-            const downloadName = getSubmissionPhotoDownloadName(item, index, photoUrl, photoFileNames);
-            const escapedPhotoUrl = escapeHtml(photoUrl);
-            const escapedDownloadName = escapeHtml(downloadName);
-
-            return `
-              <div class="submission-image-card">
-                <img class="submission-image" src="${escapedPhotoUrl}" alt="Ảnh ${index + 1} của ${escapeHtml(item.fullName)}" />
-                <div class="submission-image-actions">
-                  <span class="submission-image-name">${escapedDownloadName}</span>
-                  <a
-                    class="button button-secondary submission-image-download"
-                    href="${escapedPhotoUrl}"
-                    download="${escapedDownloadName}"
-                    data-no-ajax="true"
-                  >
-                    Tải ảnh gốc
-                  </a>
-                </div>
-              </div>
-            `;
-          })
-          .join("")
-      : "";
+    const photoCount = getSubmissionPhotoCount(displayItem);
+    const photoRegionMarkup = getSubmissionPhotoRegionMarkup(
+      displayItem,
+      !getSubmissionPhotoDataUrls(displayItem).length && photoCount
+        ? `Mo ho so de tai ${photoCount} anh chan dung.`
+        : ""
+    );
 
     const card = document.createElement("details");
     card.className = `data-card${item.hidden ? " is-hidden-card" : ""}`;
+    card.dataset.submissionId = String(item.id);
     card.innerHTML = `
       <summary>
         <div class="data-card-head">
@@ -1136,6 +1404,7 @@ async function renderSubmissionList() {
           </div>
           <div class="data-card-meta">
             <span class="status-pill${item.hidden ? " is-hidden" : ""}">${item.hidden ? "Đã ẩn" : "Đang hiện"}</span>
+            ${photoCount ? `<span class="status-pill">${photoCount} ảnh</span>` : ""}
             <span class="date">${escapeHtml(formatDateTime(item.submittedAt))}</span>
           </div>
         </div>
@@ -1175,13 +1444,7 @@ async function renderSubmissionList() {
           <strong>Quan điểm về sự khác biệt</strong>
           <p>${escapeHtml(extendedAnswers.differenceView || "Không cung cấp")}</p>
         </div>
-        ${photoGalleryMarkup ? `
-        <div class="data-block">
-          <strong>Ảnh chân dung đã tải lên</strong>
-          <div class="submission-image-wrap submission-image-grid">
-            ${photoGalleryMarkup}
-          </div>
-        </div>` : ""}
+        <div data-submission-photo-region>${photoRegionMarkup}</div>
         <div class="data-card-actions print-hidden">
           <button class="button button-secondary" type="button" data-submission-visibility-id="${item.id}" data-submission-hidden-target="${item.hidden ? "false" : "true"}">
             ${item.hidden ? "Hiện hồ sơ này" : "Ẩn hồ sơ này"}
@@ -1189,6 +1452,11 @@ async function renderSubmissionList() {
         </div>
       </div>
     `;
+    card.addEventListener("toggle", function () {
+      if (card.open) {
+        hydrateSubmissionPhotos(card);
+      }
+    });
     submissionList.appendChild(card);
   });
 }
@@ -1317,7 +1585,7 @@ document.addEventListener("click", async function (event) {
 
     try {
       await updateSubmissionVisibility(submissionId, hiddenTarget);
-      await renderSubmissionList();
+      await renderSubmissionList({ forceRefresh: true });
     } catch (error) {
       if (error.status === 401) {
         redirectToLogin();
@@ -1336,7 +1604,7 @@ document.addEventListener("click", async function (event) {
     let submissions = [];
 
     try {
-      submissions = await fetchSubmissions();
+      submissions = cachedSubmissionItems.length ? cachedSubmissionItems.slice() : await fetchSubmissions();
     } catch (error) {
       return;
     }
@@ -1356,7 +1624,7 @@ document.addEventListener("click", async function (event) {
         method: "POST",
         body: JSON.stringify({}),
       });
-      await renderSubmissionList();
+      await renderSubmissionList({ forceRefresh: true });
     } catch (error) {
       if (error.status === 401) {
         redirectToLogin();
@@ -1374,7 +1642,7 @@ document.addEventListener("click", async function (event) {
         method: "POST",
         body: JSON.stringify({}),
       });
-      await renderSubmissionList();
+      await renderSubmissionList({ forceRefresh: true });
     } catch (error) {
       if (error.status === 401) {
         redirectToLogin();
@@ -1390,7 +1658,9 @@ document.addEventListener("click", async function (event) {
     let visibleSubmissions = [];
 
     try {
-      visibleSubmissions = getVisibleSubmissions(await fetchSubmissions());
+      visibleSubmissions = getVisibleSubmissions(
+        cachedSubmissionItems.length ? cachedSubmissionItems.slice() : await fetchSubmissions()
+      );
     } catch (error) {
       if (error.status === 401) {
         redirectToLogin();
@@ -1435,7 +1705,7 @@ document.addEventListener("click", async function (event) {
     try {
       await hideSelectedSubmissions(ids);
       selectedSubmissionIds.clear();
-      await renderSubmissionList();
+      await renderSubmissionList({ forceRefresh: true });
     } catch (error) {
       if (error.status === 401) {
         redirectToLogin();
@@ -1465,7 +1735,7 @@ document.addEventListener("click", async function (event) {
     try {
       await deleteSelectedSubmissions(ids);
       selectedSubmissionIds.clear();
-      await renderSubmissionList();
+      await renderSubmissionList({ forceRefresh: true });
     } catch (error) {
       if (error.status === 401) {
         redirectToLogin();
