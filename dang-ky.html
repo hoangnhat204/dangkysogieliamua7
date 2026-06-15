@@ -163,7 +163,7 @@
                   </div>
 
                   <div class="field full">
-                    <label for="photoUpload">15. Hãy gửi lên biểu mẫu này ít nhất 2 tấm ảnh chân dung của bạn (Ảnh rõ mặt, chính diện).</label>
+                    <label for="photoUpload">15. Hãy gửi lên biểu mẫu này ít nhất 2 và nhiều nhất 5 tấm ảnh chân dung của bạn (Ảnh rõ mặt, chính diện).</label>
                     <div class="file-upload-wrap">
                       <input class="file-upload-input" id="photoUpload" name="photo" type="file" accept="image/*" multiple required />
                       <label class="file-upload-box" for="photoUpload">
@@ -171,17 +171,18 @@
                         <span class="file-upload-text" id="photoUploadText">Chưa chọn ảnh nào</span>
                       </label>
                     </div>
+                    <div class="selected-photo-list" id="selectedPhotoList" aria-live="polite"></div>
                   </div>
 
                   <div class="field full">
                     <div class="choice-group" role="group" aria-label="Xác nhận thông tin và truyền thông">
                       <label class="choice-item">
-                        <input type="checkbox" id="truthConfirmation" name="truthConfirmation" value="Đã xác nhận thông tin cung cấp là sự thật" required />
-                        <span>Thông tin tôi vừa cung cấp bên trên là sự thật?</span>
+                        <input type="checkbox" id="truthConfirmation" name="truthConfirmation" value="Tôi xin cam kết thông tin tôi vừa cung cấp trong đơn đăng ký là sự thật." required />
+                        <span>Tôi xin cam kết thông tin tôi vừa cung cấp trong đơn đăng ký là sự thật.</span>
                       </label>
                       <label class="choice-item">
-                        <input type="checkbox" id="mediaConsent" name="mediaConsent" value="Đồng ý để BTC sử dụng thông tin và hình ảnh cho mục đích truyền thông" required />
-                        <span>BTC có quyền sử dụng thông tin và hình ảnh của bạn gửi để đăng truyền thông.</span>
+                        <input type="checkbox" id="mediaConsent" name="mediaConsent" value="BTC có quyền sử dụng thông tin và hình ảnh của tôi để phục vụ cho cuộc thi." required />
+                        <span>BTC có quyền sử dụng thông tin và hình ảnh của tôi để phục vụ cho cuộc thi.</span>
                       </label>
                     </div>
                   </div>

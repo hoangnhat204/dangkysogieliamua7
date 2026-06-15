@@ -1724,6 +1724,50 @@ body.home-page .footer {
   line-height: 1.55;
 }
 
+.selected-photo-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.selected-photo-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(164, 215, 255, 0.12);
+}
+
+.selected-photo-name {
+  color: var(--muted-strong);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.selected-photo-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 132, 132, 0.28);
+  background: rgba(110, 14, 40, 0.28);
+  color: #ffe8ee;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.selected-photo-remove:hover {
+  background: rgba(148, 24, 58, 0.34);
+  border-color: rgba(255, 158, 158, 0.38);
+  transform: translateY(-1px);
+}
+
 .image-preview {
   margin-top: 6px;
   padding: 12px;
@@ -2185,6 +2229,11 @@ body.home-page .footer {
   margin-top: 12px;
 }
 
+.submission-image-card {
+  display: grid;
+  gap: 10px;
+}
+
 .submission-image {
   display: block;
   width: 100%;
@@ -2192,6 +2241,24 @@ body.home-page .footer {
   object-fit: cover;
   border-radius: 18px;
   border: 1px solid rgba(164, 215, 255, 0.16);
+}
+
+.submission-image-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.submission-image-name {
+  color: var(--muted-strong);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.submission-image-download {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
 }
 
 .data-card-actions {
@@ -2571,8 +2638,8 @@ details p {
   }
 
   body.home-page .lead {
-    text-align: left;
-    text-align-last: auto;
+    text-align: justify;
+    text-align-last: left;
     max-width: none;
   }
 
@@ -3304,6 +3371,15 @@ details p {
   .file-upload-text {
     text-align: center;
     font-size: 0.9rem;
+  }
+
+  .selected-photo-item {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .selected-photo-remove {
+    width: 100%;
   }
 
   .auth-fab,

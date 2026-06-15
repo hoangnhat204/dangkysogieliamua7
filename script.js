@@ -8,6 +8,8 @@ const BACKGROUND_MUSIC_TIME_KEY = "sogieliaBackgroundMusicTime";
 const BACKGROUND_MUSIC_UNLOCK_KEY = "sogieliaBackgroundMusicUnlocked";
 const BACKGROUND_MUSIC_TRACK_INDEX_KEY = "sogieliaBackgroundMusicTrackIndex";
 const MAX_UPLOAD_IMAGE_SIZE = 10 * 1024 * 1024;
+const MIN_UPLOAD_IMAGE_COUNT = 2;
+const MAX_UPLOAD_IMAGE_COUNT = 5;
 const selectedSubmissionIds = new Set();
 let registrationForm;
 let successMessage;
@@ -24,7 +26,9 @@ let deleteSelectedBtn;
 let submissionSearchInput;
 let photoUploadInput;
 let photoUploadText;
+let selectedPhotoList;
 let backgroundMusicAudio = null;
+let selectedPhotoFiles = [];
 
 function cacheDomElements() {
   registrationForm = document.getElementById("registrationForm");
@@ -42,6 +46,72 @@ function cacheDomElements() {
   submissionSearchInput = document.getElementById("submissionSearch");
   photoUploadInput = document.getElementById("photoUpload");
   photoUploadText = document.getElementById("photoUploadText");
+  selectedPhotoList = document.getElementById("selectedPhotoList");
+}
+
+function getPhotoFileIdentity(file) {
+  return [file.name || "", file.size || 0, file.lastModified || 0].join("::");
+}
+
+function syncPhotoUploadInputFiles(files) {
+  if (!photoUploadInput) {
+    return;
+  }
+
+  try {
+    const dataTransfer = new DataTransfer();
+    files.forEach(function (file) {
+      if (file instanceof File) {
+        dataTransfer.items.add(file);
+      }
+    });
+    photoUploadInput.files = dataTransfer.files;
+  } catch (error) {
+    // Ignore if the browser does not allow programmatic file assignment.
+  }
+}
+
+function mergeSelectedPhotoFiles(nextFiles) {
+  const mergedFiles = [];
+  const seenFileIds = new Set();
+  let hasOverflowFiles = false;
+
+  selectedPhotoFiles.concat(nextFiles).forEach(function (file) {
+    if (!(file instanceof File) || file.size <= 0) {
+      return;
+    }
+
+    const fileId = getPhotoFileIdentity(file);
+    if (seenFileIds.has(fileId)) {
+      return;
+    }
+
+    if (mergedFiles.length >= MAX_UPLOAD_IMAGE_COUNT) {
+      hasOverflowFiles = true;
+      return;
+    }
+
+    seenFileIds.add(fileId);
+    mergedFiles.push(file);
+  });
+
+  selectedPhotoFiles = mergedFiles;
+  syncPhotoUploadInputFiles(selectedPhotoFiles);
+
+  if (hasOverflowFiles) {
+    window.alert(`Chi duoc tai len toi da ${MAX_UPLOAD_IMAGE_COUNT} anh.`);
+  }
+
+  return selectedPhotoFiles;
+}
+
+function removeSelectedPhotoFile(fileId) {
+  selectedPhotoFiles = selectedPhotoFiles.filter(function (file) {
+    return getPhotoFileIdentity(file) !== fileId;
+  });
+
+  syncPhotoUploadInputFiles(selectedPhotoFiles);
+  return selectedPhotoFiles;
 }
 
 function isCurrentPage(pageName) {
@@ -423,14 +493,18 @@ async function collectFormData(form) {
     `Thuyết trình: ${formData.get("presentationRating") || ""}. ${formData.get("presentationNote") || ""}`.trim(),
     `Quản lý thời gian: ${formData.get("timeManagementRating") || ""}. ${formData.get("timeManagementNote") || ""}`.trim(),
   ].join("\n");
-  const photoFiles = formData
-    .getAll("photo")
+  const photoFiles = (selectedPhotoFiles.length ? selectedPhotoFiles : formData
+    .getAll("photo"))
     .filter(function (file) {
       return file instanceof File && file.size > 0;
     });
 
-  if (photoFiles.length < 2) {
-    throw new Error("Vui lòng tải lên ít nhất 2 ảnh chân dung rõ mặt.");
+  if (photoFiles.length < MIN_UPLOAD_IMAGE_COUNT) {
+    throw new Error(`Vui lòng tải lên ít nhất ${MIN_UPLOAD_IMAGE_COUNT} ảnh chân dung rõ mặt.`);
+  }
+
+  if (photoFiles.length > MAX_UPLOAD_IMAGE_COUNT) {
+    throw new Error(`Chỉ được tải lên tối đa ${MAX_UPLOAD_IMAGE_COUNT} ảnh chân dung.`);
   }
 
   const invalidPhotoFile = photoFiles.find(function (file) {
@@ -580,6 +654,54 @@ function getSubmissionPhotoDataUrls(item) {
   return parseStoredArray(item.photoDataUrl);
 }
 
+function getSubmissionPhotoFileNames(item) {
+  if (Array.isArray(item.photoFileNames)) {
+    return item.photoFileNames.filter(function (value) {
+      return typeof value === "string" && value.trim() !== "";
+    });
+  }
+
+  return parseStoredArray(item.photoFileName);
+}
+
+function getImageExtensionFromDataUrl(dataUrl) {
+  const mimeTypeMatch = String(dataUrl || "").match(/^data:(image\/[^;]+);base64,/i);
+  const mimeType = mimeTypeMatch ? mimeTypeMatch[1].toLowerCase() : "";
+
+  switch (mimeType) {
+    case "image/jpeg":
+      return "jpg";
+    case "image/png":
+      return "png";
+    case "image/gif":
+      return "gif";
+    case "image/webp":
+      return "webp";
+    case "image/svg+xml":
+      return "svg";
+    case "image/bmp":
+      return "bmp";
+    case "image/heic":
+      return "heic";
+    case "image/heif":
+      return "heif";
+    default:
+      return "jpg";
+  }
+}
+
+function getSubmissionPhotoDownloadName(item, index, photoUrl, photoFileNames) {
+  const storedFileName = String(photoFileNames[index] || "").trim();
+  if (storedFileName) {
+    return storedFileName;
+  }
+
+  const photoExtension = getImageExtensionFromDataUrl(photoUrl);
+  const submissionId = Number(item.id);
+  const safeSubmissionId = Number.isInteger(submissionId) && submissionId > 0 ? submissionId : "thi-sinh";
+  return `sogielia-${safeSubmissionId}-anh-${index + 1}.${photoExtension}`;
+}
+
 function getSubmissionExtendedAnswers(item) {
   const extraAnswers = Array.isArray(item.expectation) ? item.expectation : [];
 
@@ -599,8 +721,35 @@ function updateImagePreviewFromFiles(files) {
 
   if (photoUploadText) {
     photoUploadText.textContent = validFiles.length
-      ? `Đã chọn ${validFiles.length} ảnh`
+      ? `Đã chọn ${validFiles.length}/${MAX_UPLOAD_IMAGE_COUNT} ảnh, bấm để chọn thêm`
       : "Chưa chọn ảnh nào";
+  }
+
+  if (selectedPhotoList) {
+    if (!validFiles.length) {
+      selectedPhotoList.innerHTML = "";
+    } else {
+      selectedPhotoList.innerHTML = validFiles
+        .map(function (file) {
+          const fileId = getPhotoFileIdentity(file)
+            .replace(/&/g, "&amp;")
+            .replace(/"/g, "&quot;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+          const fileName = String(file.name || "Ảnh đã chọn")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+          return `
+            <div class="selected-photo-item">
+              <div class="selected-photo-name">${fileName}</div>
+              <button class="selected-photo-remove" type="button" data-remove-photo-id="${fileId}">Xóa ảnh</button>
+            </div>
+          `;
+        })
+        .join("");
+    }
   }
 
   return validFiles;
@@ -609,7 +758,8 @@ function updateImagePreviewFromFiles(files) {
 function setupRegistrationImagePreview() {
   if (photoUploadInput) {
     const currentFiles = photoUploadInput.files ? Array.from(photoUploadInput.files) : [];
-    updateImagePreviewFromFiles(currentFiles);
+    selectedPhotoFiles = currentFiles;
+    updateImagePreviewFromFiles(selectedPhotoFiles);
   }
 
   return photoUploadInput;
@@ -943,10 +1093,30 @@ async function renderSubmissionList() {
   matchedSubmissions.forEach(function (item) {
     const extendedAnswers = getSubmissionExtendedAnswers(item);
     const photoDataUrls = getSubmissionPhotoDataUrls(item);
+    const photoFileNames = getSubmissionPhotoFileNames(item);
     const photoGalleryMarkup = photoDataUrls.length
       ? photoDataUrls
           .map(function (photoUrl, index) {
-            return `<img class="submission-image" src="${escapeHtml(photoUrl)}" alt="Ảnh ${index + 1} của ${escapeHtml(item.fullName)}" />`;
+            const downloadName = getSubmissionPhotoDownloadName(item, index, photoUrl, photoFileNames);
+            const escapedPhotoUrl = escapeHtml(photoUrl);
+            const escapedDownloadName = escapeHtml(downloadName);
+
+            return `
+              <div class="submission-image-card">
+                <img class="submission-image" src="${escapedPhotoUrl}" alt="Ảnh ${index + 1} của ${escapeHtml(item.fullName)}" />
+                <div class="submission-image-actions">
+                  <span class="submission-image-name">${escapedDownloadName}</span>
+                  <a
+                    class="button button-secondary submission-image-download"
+                    href="${escapedPhotoUrl}"
+                    download="${escapedDownloadName}"
+                    data-no-ajax="true"
+                  >
+                    Tải ảnh gốc
+                  </a>
+                </div>
+              </div>
+            `;
           })
           .join("")
       : "";
@@ -1080,6 +1250,7 @@ document.addEventListener("submit", async function (event) {
       successMessage.classList.add("show");
       submittedRegistrationForm.classList.add("submitted");
       submittedRegistrationForm.reset();
+      selectedPhotoFiles = [];
       updateImagePreviewFromFiles([]);
       submittedRegistrationForm.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (error) {
@@ -1096,6 +1267,7 @@ document.addEventListener("click", async function (event) {
   const logoutControl = event.target.closest('button[data-auth-action="logout"], #logoutButton');
   const visibilityControl = event.target.closest("button[data-submission-visibility-id]");
   const submissionSelectControl = event.target.closest(".submission-select-control");
+  const removePhotoControl = event.target.closest("[data-remove-photo-id]");
   const hideDataControl = event.target.closest("#hideDataBtn");
   const restoreDataControl = event.target.closest("#restoreDataBtn");
   const exportExcelControl = event.target.closest("#exportExcelBtn");
@@ -1128,6 +1300,12 @@ document.addEventListener("click", async function (event) {
       submissionSelectCheckbox.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
+    return;
+  }
+
+  if (removePhotoControl) {
+    event.preventDefault();
+    updateImagePreviewFromFiles(removeSelectedPhotoFile(removePhotoControl.dataset.removePhotoId || ""));
     return;
   }
 
@@ -1329,7 +1507,7 @@ document.addEventListener("change", function (event) {
 
   if (changedPhotoInput) {
     const nextFiles = changedPhotoInput.files ? Array.from(changedPhotoInput.files) : [];
-    updateImagePreviewFromFiles(nextFiles);
+    updateImagePreviewFromFiles(mergeSelectedPhotoFiles(nextFiles));
     return;
   }
 
@@ -1354,6 +1532,15 @@ document.addEventListener("change", function (event) {
 
   if (submissionCount && submissionList) {
     renderSubmissionList();
+  }
+});
+
+document.addEventListener("click", function (event) {
+  const photoInput = event.target.closest("#photoUpload");
+  const photoUploadTrigger = event.target.closest(".file-upload-box");
+
+  if ((photoInput || photoUploadTrigger) && photoUploadInput) {
+    photoUploadInput.value = "";
   }
 });
 
