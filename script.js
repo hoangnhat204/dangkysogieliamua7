@@ -26,6 +26,8 @@ let exportExcelBtn;
 let hideSelectedBtn;
 let deleteSelectedBtn;
 let submissionSearchInput;
+let pushEnableBtn;
+let pushDisableBtn;
 let backgroundMusicAudio = null;
 let cachedSubmissionItems = [];
 let submissionSearchTimer = 0;
@@ -53,6 +55,8 @@ function cacheDomElements() {
   hideSelectedBtn = document.getElementById("hideSelectedBtn");
   deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
   submissionSearchInput = document.getElementById("submissionSearch");
+  pushEnableBtn = document.getElementById("pushEnableBtn");
+  pushDisableBtn = document.getElementById("pushDisableBtn");
 }
 
 function isCurrentPage(pageName) {
@@ -388,6 +392,11 @@ async function navigateToInternalPage(url, options = {}) {
   if (isCurrentPage("admin.html")) {
     const authenticated = await requireAdminAuth();
     if (authenticated) {
+      try {
+        await registerPushServiceWorker();
+      } catch (error) {
+      }
+      await updateAdminPushButtons();
       await renderSubmissionList();
     }
   } else if (isCurrentPage("login.html")) {
@@ -947,6 +956,142 @@ async function deleteSelectedSubmissions(ids) {
   return Array.isArray(data.deletedIds) ? data.deletedIds : [];
 }
 
+function isPushSupported() {
+  return Boolean(window.Notification && navigator.serviceWorker && window.PushManager);
+}
+
+function urlBase64ToUint8Array(value) {
+  const raw = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+  const padded = raw + "=".repeat((4 - (raw.length % 4)) % 4);
+  const decoded = window.atob(padded);
+  const output = new Uint8Array(decoded.length);
+  for (let index = 0; index < decoded.length; index += 1) {
+    output[index] = decoded.charCodeAt(index);
+  }
+  return output;
+}
+
+async function registerPushServiceWorker() {
+  return navigator.serviceWorker.register("/sw.js");
+}
+
+async function getVapidPublicKey() {
+  const data = await apiRequest("vapid_public_key", {
+    method: "GET",
+  });
+  return String(data.publicKey || "");
+}
+
+async function getCurrentPushSubscription() {
+  if (!isPushSupported()) {
+    return null;
+  }
+
+  const registration = await navigator.serviceWorker.getRegistration();
+  if (!registration) {
+    return null;
+  }
+
+  return registration.pushManager.getSubscription();
+}
+
+async function updateAdminPushButtons() {
+  if (!pushEnableBtn || !pushDisableBtn) {
+    return;
+  }
+
+  if (!isPushSupported()) {
+    pushEnableBtn.hidden = true;
+    pushDisableBtn.hidden = true;
+    return;
+  }
+
+  const permission = window.Notification.permission;
+  let subscription = null;
+
+  try {
+    subscription = await getCurrentPushSubscription();
+  } catch (error) {
+    subscription = null;
+  }
+
+  const enabled = permission === "granted" && Boolean(subscription);
+  pushEnableBtn.hidden = enabled;
+  pushDisableBtn.hidden = !enabled;
+}
+
+async function enableAdminPushNotifications() {
+  if (!isPushSupported()) {
+    window.alert("Trình duyệt hiện tại không hỗ trợ thông báo Web Push.");
+    return;
+  }
+
+  const permission = await window.Notification.requestPermission();
+  if (permission !== "granted") {
+    window.alert("Bạn chưa cho phép thông báo. Vui lòng bật lại trong cài đặt trình duyệt.");
+    await updateAdminPushButtons();
+    return;
+  }
+
+  const registration = await registerPushServiceWorker();
+  const vapidPublicKey = await getVapidPublicKey();
+  if (!vapidPublicKey) {
+    window.alert("Server chưa cấu hình VAPID key để gửi thông báo.");
+    return;
+  }
+
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+  });
+
+  const subscriptionPayload = subscription && typeof subscription.toJSON === "function"
+    ? subscription.toJSON()
+    : JSON.parse(JSON.stringify(subscription));
+
+  await apiRequest("save_push_subscription", {
+    method: "POST",
+    body: JSON.stringify({
+      subscription: subscriptionPayload,
+    }),
+  });
+
+  await updateAdminPushButtons();
+  window.alert("Đã bật thông báo cho admin trên thiết bị này.");
+}
+
+async function disableAdminPushNotifications() {
+  if (!isPushSupported()) {
+    return;
+  }
+
+  const registration = await navigator.serviceWorker.getRegistration();
+  if (!registration) {
+    await updateAdminPushButtons();
+    return;
+  }
+
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    await updateAdminPushButtons();
+    return;
+  }
+
+  try {
+    await apiRequest("delete_push_subscription", {
+      method: "POST",
+      body: JSON.stringify({
+        endpoint: subscription.endpoint,
+      }),
+    });
+  } catch (error) {
+  }
+
+  await subscription.unsubscribe();
+  await updateAdminPushButtons();
+  window.alert("Đã tắt thông báo cho admin trên thiết bị này.");
+}
+
 async function renderSubmissionList(options) {
   if (!submissionList || !emptyState || !submissionCount) {
     return;
@@ -1166,6 +1311,8 @@ document.addEventListener("click", async function (event) {
   const exportExcelControl = event.target.closest("#exportExcelBtn");
   const hideSelectedControl = event.target.closest("#hideSelectedBtn");
   const deleteSelectedControl = event.target.closest("#deleteSelectedBtn");
+  const pushEnableControl = event.target.closest("#pushEnableBtn");
+  const pushDisableControl = event.target.closest("#pushDisableBtn");
 
   if (
     navigationLink &&
@@ -1179,6 +1326,26 @@ document.addEventListener("click", async function (event) {
   ) {
     event.preventDefault();
     await navigateToInternalPage(navigationLink.href);
+    return;
+  }
+
+  if (pushEnableControl) {
+    try {
+      await enableAdminPushNotifications();
+    } catch (error) {
+      window.alert(error.message || "Không bật được thông báo trên thiết bị này.");
+      await updateAdminPushButtons();
+    }
+    return;
+  }
+
+  if (pushDisableControl) {
+    try {
+      await disableAdminPushNotifications();
+    } catch (error) {
+      window.alert(error.message || "Không tắt được thông báo trên thiết bị này.");
+      await updateAdminPushButtons();
+    }
     return;
   }
 
@@ -1462,6 +1629,11 @@ async function initializePage() {
   if (isCurrentPage("admin.html")) {
     const authenticated = await requireAdminAuth();
     if (authenticated) {
+      try {
+        await registerPushServiceWorker();
+      } catch (error) {
+      }
+      await updateAdminPushButtons();
       await renderSubmissionList();
     }
     return;

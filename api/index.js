@@ -1,10 +1,20 @@
 const { createHmac, timingSafeEqual } = require("crypto");
+let webpush = null;
+
+try {
+  webpush = require("web-push");
+} catch (error) {
+  webpush = null;
+}
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "cvct";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "123";
 const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || "doi-secret-nay-tren-vercel";
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@sogielia.local";
 const SESSION_COOKIE_NAME = "sogielia_admin_session";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
@@ -246,6 +256,101 @@ async function supabaseRequest(path, options = {}) {
   return data;
 }
 
+function isWebPushReady() {
+  return Boolean(webpush && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
+}
+
+function ensureWebPushConfigured() {
+  if (!isWebPushReady()) {
+    return false;
+  }
+
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  return true;
+}
+
+function normalizeSubscriptionPayload(raw) {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Subscription khong hop le.");
+  }
+
+  const endpoint = String(raw.endpoint || "").trim();
+  const keys = raw.keys && typeof raw.keys === "object" ? raw.keys : {};
+  const p256dh = String(keys.p256dh || "").trim();
+  const auth = String(keys.auth || "").trim();
+
+  if (!endpoint || !p256dh || !auth) {
+    throw new Error("Subscription thieu endpoint hoac keys.");
+  }
+
+  return {
+    endpoint,
+    subscriptionJson: JSON.stringify({
+      endpoint,
+      keys: {
+        p256dh,
+        auth,
+      },
+    }),
+  };
+}
+
+async function fetchActivePushSubscriptions() {
+  const rows = await supabaseRequest("push_subscriptions?select=endpoint,subscription_json&active=eq.true");
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function markPushSubscriptionInactive(endpoint) {
+  const safeEndpoint = encodeURIComponent(String(endpoint || ""));
+  if (!safeEndpoint) {
+    return;
+  }
+
+  await supabaseRequest(`push_subscriptions?endpoint=eq.${safeEndpoint}`, {
+    method: "PATCH",
+    body: {
+      active: false,
+    },
+  });
+}
+
+async function sendAdminWebPush(payload) {
+  if (!ensureWebPushConfigured()) {
+    return;
+  }
+
+  const subscriptions = await fetchActivePushSubscriptions();
+  if (!subscriptions.length) {
+    return;
+  }
+
+  const message = JSON.stringify(payload || {});
+  const tasks = subscriptions.map(async (row) => {
+    let subscription = null;
+    try {
+      subscription = JSON.parse(row.subscription_json || "{}");
+    } catch (error) {
+      subscription = null;
+    }
+
+    if (!subscription || !subscription.endpoint) {
+      await markPushSubscriptionInactive(row.endpoint);
+      return;
+    }
+
+    try {
+      await webpush.sendNotification(subscription, message);
+    } catch (error) {
+      const statusCode = error && typeof error === "object" ? Number(error.statusCode || error.status || 0) : 0;
+      if (statusCode === 404 || statusCode === 410) {
+        await markPushSubscriptionInactive(subscription.endpoint);
+      }
+    }
+  });
+
+  await Promise.allSettled(tasks);
+}
+
 module.exports = async (req, res) => {
   const method = req.method || "GET";
   const action = Array.isArray(req.query.action) ? req.query.action[0] : req.query.action || "";
@@ -262,6 +367,20 @@ module.exports = async (req, res) => {
         ok: true,
         authenticated: isAuthenticated(req),
       });
+      return;
+    }
+
+    if (method === "GET" && action === "vapid_public_key") {
+      if (!requireAdminRequest(req, res)) {
+        return;
+      }
+
+      if (!VAPID_PUBLIC_KEY) {
+        sendJson(res, { ok: false, message: "Chua cau hinh VAPID_PUBLIC_KEY." }, 500);
+        return;
+      }
+
+      sendJson(res, { ok: true, publicKey: VAPID_PUBLIC_KEY });
       return;
     }
 
@@ -286,6 +405,52 @@ module.exports = async (req, res) => {
           "Set-Cookie": createSessionCookie(),
         }
       );
+      return;
+    }
+
+    if (method === "POST" && action === "save_push_subscription") {
+      if (!requireAdminRequest(req, res)) {
+        return;
+      }
+
+      const body = await readRequestBody(req);
+      const subscription = body.subscription;
+      const normalized = normalizeSubscriptionPayload(subscription);
+
+      await supabaseRequest("push_subscriptions", {
+        method: "POST",
+        prefer: "resolution=merge-duplicates,return=minimal",
+        body: {
+          endpoint: normalized.endpoint,
+          subscription_json: normalized.subscriptionJson,
+          active: true,
+          last_seen: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          user_agent: String(req.headers["user-agent"] || ""),
+        },
+      });
+
+      sendJson(res, { ok: true });
+      return;
+    }
+
+    if (method === "POST" && action === "delete_push_subscription") {
+      if (!requireAdminRequest(req, res)) {
+        return;
+      }
+
+      const body = await readRequestBody(req);
+      const endpoint = String(body.endpoint || "").trim();
+      if (!endpoint) {
+        sendJson(res, { ok: false, message: "Thieu endpoint." }, 422);
+        return;
+      }
+
+      await supabaseRequest(`push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`, {
+        method: "DELETE",
+      });
+
+      sendJson(res, { ok: true });
       return;
     }
 
@@ -358,6 +523,14 @@ module.exports = async (req, res) => {
       });
 
       const createdItem = Array.isArray(createdRows) && createdRows.length ? createdRows[0] : null;
+      try {
+        await sendAdminWebPush({
+          title: "Sogielia Mùa 7",
+          body: `Có thí sinh mới đăng ký: ${String(createdItem && createdItem.full_name ? createdItem.full_name : body.fullName || "").trim() || "Không rõ tên"}`,
+          url: "/admin.html",
+        });
+      } catch (error) {
+      }
       sendJson(res, {
         ok: true,
         item: createdItem ? normalizeSubmission(createdItem) : null,

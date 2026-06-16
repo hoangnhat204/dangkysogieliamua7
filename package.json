@@ -1,0 +1,7 @@
+{
+  "name": "sogielia-mua-7",
+  "private": true,
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
