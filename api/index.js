@@ -417,7 +417,7 @@ module.exports = async (req, res) => {
       const subscription = body.subscription;
       const normalized = normalizeSubscriptionPayload(subscription);
 
-      await supabaseRequest("push_subscriptions", {
+      await supabaseRequest("push_subscriptions?on_conflict=endpoint", {
         method: "POST",
         prefer: "resolution=merge-duplicates,return=minimal",
         body: {
